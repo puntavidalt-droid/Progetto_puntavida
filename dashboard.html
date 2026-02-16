@@ -2,21 +2,12 @@
 <html>
 <head>
   <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
-<link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-  
   <?!= include('css_comune'); ?>
-  
   <style>
-    :root { --sidebar-width: 260px; --accent-color: #1ed760; }
-    body { background-color: #000; color: #fff; min-height: 100vh; display: flex; margin: 0; overflow-x: hidden; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-    
-    /* SIDEBAR PC */
+    :root { --sidebar-width: 260px; }
+    body { background-color: #000; color: #fff; min-height: 100vh; display: flex; margin: 0; overflow-x: hidden; }
     #sidebar {
       width: var(--sidebar-width); background: #121212; border-right: 1px solid #333;
       display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0;
@@ -28,58 +19,69 @@
     }
     .nav-link i { font-size: 1.3rem; margin-right: 15px; }
     .nav-link:hover { color: #fff; background: #282828; }
-    .nav-link.active { color: var(--accent-color); background: #282828; font-weight: bold; }
-    
-    /* MAIN CONTENT */
+    .nav-link.active { color: #1ed760; background: #282828; font-weight: bold; }
     #main-content { flex-grow: 1; display: flex; flex-direction: column; width: 100%; }
     #content-area { padding: 25px; max-width: 1400px; margin: 0 auto; width: 100%; }
-    
-    /* MOBILE NAVIGATION (BOTTOM BAR) */
-    .mobile-bottom-nav {
-      display: none; position: fixed; bottom: 0; left: 0; right: 0; 
-      height: 65px; background: #121212; border-top: 1px solid #333;
-      justify-content: space-around; align-items: center; z-index: 2000;
-    }
-    .mobile-nav-item { color: #b3b3b3; text-decoration: none; text-align: center; font-size: 0.6rem; flex: 1; }
-    .mobile-nav-item i { display: block; font-size: 1.5rem; }
-    .mobile-nav-item.active { color: var(--accent-color); }
-
-    /* RESPONSIVE LOGIC */
+    .mobile-navbar { display: none; background: #121212; padding: 10px 15px; border-bottom: 1px solid #333; align-items: center; }
     @media (max-width: 992px) {
-      #sidebar { display: none; } /* Nascondiamo la sidebar su mobile */
-      .mobile-bottom-nav { display: flex; }
-      body { padding-bottom: 70px; } /* Spazio per la nav bar */
+      #sidebar { position: fixed; transform: translateX(-100%); }
+      #sidebar.show { transform: translateX(0); }
+      .mobile-navbar { display: flex; }
       #content-area { padding: 15px; }
-      .mobile-top-bar { display: flex; background: #121212; padding: 10px 20px; border-bottom: 1px solid #333; align-items: center; position: sticky; top:0; z-index: 1000;}
     }
+    #sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1040; }
+    #sidebar-overlay.show { display: block; }
+    /* --- FORZATURA ANTI-BLU PER MODULI DINAMICI --- */
     
-    @media (min-width: 993px) {
-      .mobile-top-bar { display: none; }
+    /* 1. Trasforma tutti i bottoni blu/azzurri in stile PuntaVida (Trasparente -> Verde) */
+    #modulo-container .btn-primary, 
+    #modulo-container .btn-info,
+    #modulo-container .btn-success {
+      background-color: transparent !important;
+      color: #fff !important;
+      border: 1px solid #444 !important;
+      text-transform: uppercase !important;
+      font-weight: 700 !important;
+      transition: all 0.3s ease !important;
     }
 
-    /* DARK THEME FORCED FOR MODULES */
-    #modulo-container .btn-primary, #modulo-container .btn-success {
-      background-color: transparent !important; color: #fff !important;
-      border: 1px solid #444 !important; text-transform: uppercase !important;
-      font-weight: 700 !important; transition: all 0.3s ease !important;
-    }
-    #modulo-container .btn-primary:hover, #modulo-container .btn-success:hover {
-      color: var(--accent-color) !important; border-color: var(--accent-color) !important;
+    /* 2. Effetto Hover Verde Fluo */
+    #modulo-container .btn-primary:hover, 
+    #modulo-container .btn-info:hover,
+    #modulo-container .btn-success:hover {
+      color: #1ed760 !important;
+      border-color: #1ed760 !important;
       background-color: rgba(30, 214, 96, 0.05) !important;
+      transform: scale(1.02);
+    }
+
+    /* 3. Uccide il blu dai link e dai testi evidenziati */
+    #modulo-container a, 
+    #modulo-container .text-primary {
+      color: #1ed760 !important;
+      text-decoration: none !important;
+    }
+
+    /* 4. Sistema le tabelle per il dark mode */
+    #modulo-container .table {
+      color: #fff !important;
+      border-color: #333 !important;
     }
   </style>
 </head>
 <body>
 
+  <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
   <nav id="sidebar">
     <div class="p-4 mb-3 text-center">
       <h5 class="fw-bold text-uppercase text-success mb-0" style="letter-spacing: 2px;">
-        <i class="bi bi-rocket-takeoff-fill me-2"></i> PUNTA VIDA
+        <i class="bi bi-rocket-takeoff-fill me-2"></i> CONTROL ROOM
       </h5>
       <div id="user-display" class="small text-muted mt-2 text-uppercase" style="font-size: 0.7rem;"></div>
     </div>
     
-   <div class="nav flex-column flex-grow-1">
+    <div class="nav flex-column flex-grow-1">
       <a class="nav-link active" onclick="cambiaVista('home', this)">
         <i class="bi bi-speedometer2"></i> Home Live
       </a>
@@ -87,129 +89,172 @@
         <i class="bi bi-list-check"></i> Prenotazioni
       </a>
       <a class="nav-link" onclick="cambiaVista('eventi', this)">
-        <i class="bi bi-calendar4-event"></i> Eventi
+        <i class="bi bi-calendar4-event"></i> Gestione Eventi
       </a>
       <a class="nav-link" onclick="cambiaVista('pr', this)">
         <i class="bi bi-people"></i> Team PR
       </a>
-      <a class="nav-link" onclick="cambiaVista('staff', this)">
-        <i class="bi bi-shield-lock"></i> Gestione Staff
+      <a class="nav-link" id="nav-staff" onclick="cambiaVista('staff', this)">
+        <i class="bi bi-shield-lock"></i> Staff
       </a>
+      <hr class="mx-3 opacity-25">
       <a class="nav-link text-warning" onclick="cambiaVista('links', this)">
         <i class="bi bi-link-45deg"></i> Link Generator
       </a>
     </div>
 
     <div class="mt-auto p-3">
-      <button class="btn btn-outline-danger btn-sm w-100" onclick="logout()">LOGOUT</button>
+      <button class="btn btn-outline-danger w-100" onclick="logout()">
+        <i class="bi bi-box-arrow-left me-2"></i> ESCI
+      </button>
+    </div>
+
+    <div class="p-3 border-top border-secondary d-flex justify-content-between align-items-center">
+      <small class="opacity-50">v 1.3.1 • Turbo</small>
+      <button class="btn btn-sm btn-outline-success" onclick="sincronizzaDatabase()" title="Aggiorna Dati">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
     </div>
   </nav>
 
   <div id="main-content">
-    <div class="mobile-top-bar">
-       <span class="fw-bold text-success">PUNTA VIDA CONTROL</span>
+    <div class="mobile-navbar sticky-top">
+      <button class="btn btn-dark" onclick="toggleSidebar()">
+        <i class="bi bi-list fs-3"></i>
+      </button>
+      <span class="ms-3 fw-bold text-uppercase">DASHBOARD LIVE</span>
     </div>
 
     <div id="content-area">
       <div id="modulo-container">
           <div class="text-center p-5">
             <div class="spinner-border text-success"></div>
+            <p class="mt-3 text-muted">Verifica autorizzazioni...</p>
           </div>
       </div>
     </div>
   </div>
 
-  <nav class="mobile-bottom-nav">
-    <a href="#" class="mobile-nav-item active" onclick="caricaDaMobile('home', this)">
-      <i class="bi bi-house-door"></i><span>Home</span>
-    </a>
-    <a href="#" class="mobile-nav-item" onclick="caricaDaMobile('staff', this)">
-      <i class="bi bi-person-badge"></i><span>Staff</span>
-    </a>
-    <a href="#" class="mobile-nav-item" onclick="apriScanner()">
-      <i class="bi bi-qr-code-scan"></i><span>Scanner</span>
-    </a>
-    <a href="#" class="mobile-nav-item" onclick="caricaDaMobile('gestione_prenotazioni', this)">
-      <i class="bi bi-people"></i><span>Check-in</span>
-    </a>
-    <a href="#" class="mobile-nav-item" onclick="logout()">
-      <i class="bi bi-box-arrow-left"></i><span>Esci</span>
-    </a>
-  </nav>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
+    // 1. VARIABILI GLOBALI
     window.utenteLoggato = null;
+    window.cacheDati = null;
     let moduloCorrente = 'home';
 
-    // Security Check
+    // 2. SECURITY CHECK IMMEDIATO
     (function() {
       const sessione = localStorage.getItem('sessione_punta_vida');
-      if (!sessione) { logout(); return; }
-      window.utenteLoggato = JSON.parse(sessione);
-      document.getElementById('user-display').innerText = "User: " + window.utenteLoggato.nickname;
+      const urlApp = "<?= ScriptApp.getService().getUrl() ?>";
+
+      if (!sessione) {
+        window.location.href = urlApp + "?page=login";
+        return;
+      }
+
+      try {
+        window.utenteLoggato = JSON.parse(sessione);
+        document.getElementById('user-display').innerText = "User: " + window.utenteLoggato.nickname;
+      } catch (e) {
+        localStorage.removeItem('sessione_punta_vida');
+        window.location.href = urlApp + "?page=login";
+      }
     })();
 
     function logout() {
-      localStorage.removeItem('sessione_punta_vida');
-      const url = "<?= ScriptApp.getService().getUrl() ?>?page=login";
-      window.location.href = url;
+      if (confirm("Vuoi uscire dall'area riservata?")) {
+        localStorage.removeItem('sessione_punta_vida');
+        window.location.href = "<?= ScriptApp.getService().getUrl() ?>?page=login";
+      }
     }
 
-    // Navigazione Mobile
-    function caricaDaMobile(modulo, el) {
-      document.querySelectorAll('.mobile-nav-item').forEach(i => i.classList.remove('active'));
-      el.classList.add('active');
-      cambiaVista(modulo);
+    // 3. GESTIONE VISTE
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      sidebar.classList.toggle('show');
+      overlay.classList.toggle('show');
     }
 
-    function apriScanner() {
-       window.location.href = "<?= ScriptApp.getService().getUrl() ?>?page=scanner";
+    function sincronizzaDatabase(callback) {
+      google.script.run
+        .withSuccessHandler(dati => {
+          window.cacheDati = dati;
+          if(callback) callback();
+        })
+        .getTuttiIDati();
     }
 
-    // Caricamento Moduli
     function cambiaVista(modulo, element) {
-      if (modulo === 'staff' && !window.utenteLoggato.is_admin) return;
+      // Protezione Admin per il modulo staff
+      if (modulo === 'staff' && !window.utenteLoggato.is_admin) {
+          alert("Accesso negato: servono privilegi di Amministratore.");
+          return;
+      }
 
       const container = document.getElementById('modulo-container');
+      moduloCorrente = modulo;
+      
       if (element) {
         document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
         element.classList.add('active');
       }
 
-      container.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-success"></div></div>';
+      if (window.innerWidth < 992) {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if(sidebar && sidebar.classList.contains('show')) toggleSidebar();
+      }
+
+      container.innerHTML = `
+        <div class="text-center p-5">
+          <div class="spinner-border text-success"></div>
+          <p class="mt-3 text-muted">Caricamento modulo: ${modulo.toUpperCase()}...</p>
+        </div>`;
 
       google.script.run
         .withSuccessHandler(html => {
           container.innerHTML = html;
           
-          // Esecuzione Script del modulo caricato (Senza duplicazioni)
+          // Ri-esegue gli script contenuti nel modulo caricato
           const scripts = container.querySelectorAll("script");
           scripts.forEach(oldScript => {
             const newScript = document.createElement("script");
             Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-            newScript.text = oldScript.innerHTML;
-            document.body.appendChild(newScript).parentNode.removeChild(newScript);
+            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+            oldScript.parentNode.replaceChild(newScript, oldScript);
           });
 
-          // Avvio funzioni specifiche
-         // Sostituisci il blocco initMap con questo:
+          // Inizializzazione moduli
           setTimeout(() => {
-            const initMap = {
+            const funzioniAvvio = {
               'home': 'caricaHome',
               'eventi': 'caricaEventi',
               'pr': 'caricaPR',
-              'staff': 'caricaStaff', // <--- RIGA AGGIUNTA
+              'staff': 'caricaStaff',
+              'links': 'caricaGenerator',
               'gestione_prenotazioni': 'inizializzaGestione'
             };
-            if (window[initMap[modulo]]) window[initMap[modulo]]();
-          }, 100);
+            const nomeFunzione = funzioniAvvio[modulo];
+            if (window[nomeFunzione]) window[nomeFunzione]();
+          }, 150);
         })
         .getModuloHTML(modulo);
     }
 
-    document.addEventListener('DOMContentLoaded', () => cambiaVista('home'));
+    // 4. AVVIO
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.utenteLoggato) {
+        sincronizzaDatabase(() => {
+          cambiaVista('home', document.querySelector('.nav-link.active'));
+        });
+      }
+    });
+
+    // Alias per i sottomoduli
+    window.caricaModulo = (m) => cambiaVista(m, (m === 'gestione_prenotazioni' ? document.getElementById('nav-prenotazioni') : null));
+
   </script>
 </body>
 </html>

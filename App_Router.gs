@@ -1,5 +1,168 @@
 /**
  * App_router.gs
+ * Punto di ingresso unico per la Web App con gestione Login.
+ */
+function doGet(e) {
+  try {
+     SpreadsheetApp.getActiveSpreadsheet();
+    
+    const page = e.parameter.page;
+
+    // --- 1. PAGINE PUBBLICHE (Senza Login) ---
+    
+    // Pagina di Registrazione per i Clienti
+    if (page === 'registrazione' || !page) {
+      return renderRegistrazione(e);
+    }
+
+    // Pagina di Login per lo Staff
+    if (page === 'login') {
+      return HtmlService.createTemplateFromFile('login')
+          .evaluate()
+          .setTitle("Punta Vida | Login Staff")
+          .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0')
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+
+    // --- 2. PAGINE PROTETTE (Richiedono Login) ---
+    // Nota: Il controllo della sessione (localStorage) avviene nel browser.
+    // Se l'utente non è loggato, il JS della pagina lo rimanderà a ?page=login
+
+    // Dashboard Principale
+    if (page === 'dashboard' || page === 'admin') {
+      const template = HtmlService.createTemplateFromFile('dashboard');
+      template.dashboardContext = true; 
+      return template.evaluate()
+          .setTitle("Admin Dashboard")
+          .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    
+    // Accesso alla Home Live
+    if (page === 'home') return renderHomeLive(e);
+
+    // Scanner per lo Staff
+    if (page === 'scanner') return renderScanner(e); 
+    
+    // Pagine Gestione Singole
+    if (page === 'gestione_eventi') return renderGestioneEventi(e);
+    if (page === 'gestione_pr') return renderGestionePR(e);
+    if (page === 'gestione_staff') return renderGestioneStaff(e);
+    if (page === 'gestione_prenotazioni') return renderGestionePrenotazioni(e);
+
+    // Fallback sulla registrazione se la pagina non è riconosciuta
+    return renderRegistrazione(e);
+
+  } catch (err) {
+    console.error("Errore doGet: " + err.toString());
+    return HtmlService.createHtmlOutput(
+      "<div style='font-family:sans-serif; padding:50px; text-align:center;'>" +
+      "<h2>Errore di Sistema</h2>" +
+      "<p>Si è verificato un problema durante il caricamento.</p></div>"
+    );
+  }
+}
+
+/**
+ * Restituisce il contenuto HTML dei moduli richiesti via JavaScript.
+ * Aggiunto controllo: se il modulo è 'staff' o 'prenotazioni', 
+ * potresti aggiungere controlli extra lato server qui.
+ */
+function getModuloHTML(modulo) {
+  const mapping = {
+    'home': 'home_live',
+    'eventi': 'gestione_eventi',
+    'pr': 'gestione_pr',
+    'staff': 'gestione_staff',
+    'links': 'link_generator',
+    'gestione_prenotazioni': 'gestione_prenotazioni'
+  };
+  
+  const fileName = mapping[modulo];
+  if (!fileName) return "Modulo non trovato";
+  
+  try {
+    const template = HtmlService.createTemplateFromFile(fileName);
+    template.dashboardContext = true; 
+    return template.evaluate().getContent();
+  } catch (err) {
+    return "Errore caricamento modulo: " + err.message;
+  }
+}
+
+/**
+ * Funzioni di rendering
+ */
+
+function renderGestionePrenotazioni(e) {
+  return HtmlService.createTemplateFromFile('gestione_prenotazioni').evaluate()
+      .setTitle("Admin - Dettaglio Prenotazioni")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function renderGestioneEventi(e) {
+  return HtmlService.createTemplateFromFile('gestione_eventi').evaluate()
+      .setTitle("Admin - Gestione Eventi")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function renderGestionePR(e) {
+  return HtmlService.createTemplateFromFile('gestione_pr').evaluate()
+      .setTitle("Admin - Gestione PR")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function renderGestioneStaff(e) {
+  return HtmlService.createTemplateFromFile('gestione_staff').evaluate()
+      .setTitle("Admin - Gestione Staff")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function renderScanner(e) {
+  const template = HtmlService.createTemplateFromFile('scanner');
+  template.eventoCodice = e.parameter.evento || "";
+  template.nicknameStaff = e.parameter.staff || "";
+  return template.evaluate().setTitle("Staff - Scanner")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function renderRegistrazione(e) {
+  const template = HtmlService.createTemplateFromFile('registrazione');
+  template.eventoParam = e.parameter.evento || "";
+  template.prParam = e.parameter.pr || "";
+  return template.evaluate().setTitle("Registrazione Evento")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function renderHomeLive(e) {
+  return HtmlService.createTemplateFromFile('home_live').evaluate()
+      .setTitle("Admin - Live Monitor")
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function include(filename) {
+  try {
+    return HtmlService.createHtmlOutputFromFile(filename).getContent();
+  } catch (err) {
+    return "";
+  }
+}
+
+function getTuttiIDati() {
+  return {
+    eventi: dbGetAllEventi(),
+    pr: dbGetAllPR(),
+    staff: dbGetAllStaff()
+  };
+}/**
+ * App_router.gs
  * Punto di ingresso unico per la Web App con gestione Mobile PWA.
  */
 function doGet(e) {

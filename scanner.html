@@ -2,14 +2,8 @@
 <html>
 <head>
   <base target="_top">
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
-<link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   
   <?!= include('css_comune'); ?>
   
@@ -101,11 +95,9 @@
       staff: "<?= nicknameStaff ?>"
     };
 
-    // Funzione "corazzata" per ricaricare la pagina
-    // Usa l'URL dinamico dello script corrente per evitare link rotti
+    // Funzione "corazzata" per ricaricare la pagina su Google Script
     function ricaricaPagina() {
-      const baseUrl = "<?= ScriptApp.getService().getUrl() ?>";
-      const url = baseUrl + "?page=scanner&evento=" + CONFIG.evento + "&staff=" + CONFIG.staff;
+      const url = "https://script.google.com/macros/s/AKfycbxG97wZekEQjU1UYXmIOrlLknbGMJwGr1ogPXlwrvE/dev?page=scanner&evento=" + CONFIG.evento + "&staff=" + CONFIG.staff;
       window.top.location.href = url;
     }
 
@@ -116,22 +108,19 @@
           document.getElementById('display-staff').innerText = "STAFF: " + (res.nomeStaff || CONFIG.staff);
 
           if (res.authorized) {
-            // Nota: ho corretto la logica "troppoPresto" che nel tuo codice chiamava renderStatusMessage con 3 argomenti
-            // ma la funzione sotto ne accettava 3. Tutto corretto.
             if (res.troppoPresto) {
               renderStatusMessage("🕒 ACCESSO ANTICIPATO", `Il check-in apre alle ore <b>${res.oraApertura}</b>`, "#1db954");
             } else {
               document.getElementById('lock-screen').classList.add('d-none');
               document.getElementById('reader-container').classList.remove('d-none');
-              // Questo avvia lo scanner se la funzione è caricata da js_scanner
               if (typeof initScanner === "function") initScanner();
             }
           } else {
-            renderStatusMessage("⚠️ ATTENZIONE", res.msg || "Accesso non autorizzato", "#ff4444");
+            renderStatusMessage("⚠️ ATTENZIONE", res.msg, "#ff4444");
           }
         })
         .withFailureHandler(function(err) {
-          renderStatusMessage("❌ ERRORE", "Errore di connessione al database: " + err.message, "#ff4444");
+          renderStatusMessage("❌ ERRORE", "Errore di connessione al database", "#ff4444");
         })
         .verificaAccessoScanner(CONFIG.evento, CONFIG.staff);
     };
@@ -142,7 +131,7 @@
         <div class="status-card shadow-lg mx-2">
           <h2 class="fw-bold" style="color: ${colore}">${titolo}</h2>
           <p class="fs-5 text-white mt-3">${messaggio}</p>
-          <button class="btn btn-light mt-4 fw-bold" style="border-radius:15px; padding: 10px 25px;" onclick="ricaricaPagina()">RIPROVA</button>
+          <button class="btn btn-light mt-4 fw-bold" style="border-radius:15px; padding: 10px 25px;" onclick="ricaricaPagina()">VERIFICA ORA</button>
         </div>
       `;
     }
