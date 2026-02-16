@@ -188,6 +188,7 @@
     
     const evId = evEl.value;
     const evCod = evEl.options[evEl.selectedIndex].getAttribute('data-codice');
+   const evNome = evEl.options[evEl.selectedIndex].text.trim();
     const dsId = dsEl.value;
     const dsNick = dsEl.options[dsEl.selectedIndex].getAttribute('data-nick');
 
@@ -199,10 +200,26 @@
       } else {
         finalLink = urlBase + "?page=scanner&evento=" + evCod + "&staff=" + dsNick;
       }
+       const iconBrand = '\uD83C\uDF89';
+      const iconEvento = '\uD83D\uDCCD';
+      const iconRuolo = '\uD83D\uDC64';
+      const ruolo = stato.tipo === 'prenotazione' ? 'PR' : 'STAFF';
+      const descrizioneLink = stato.tipo === 'prenotazione'
+        ? 'Link ufficiale di registrazione'
+        : 'Link ufficiale scanner staff';
+       const messaggioWhatsApp = [
+        `${iconBrand} *PuntaVida*`,
+        `${iconEvento} *Evento:* ${evNome}`,
+        `${iconRuolo} *${ruolo}:* ${dsNick.toUpperCase()}`,
+        '',
+        `${descrizioneLink}:`,
+        finalLink
+      ].join('\n');
 
       document.getElementById('final-link').innerText = finalLink;
       document.getElementById('result-area').classList.remove('d-none');
-      document.getElementById('wa-link').href = "https://wa.me/?text=" + encodeURIComponent(finalLink);
+      //document.getElementById('wa-link').href = "https://wa.me/?text=" + encodeURIComponent(finalLink);
+       document.getElementById('wa-link').href = "https://wa.me/?text=" + encodeURIComponent(messaggioWhatsApp);
 
       // Salvataggio DB
       const record = {
