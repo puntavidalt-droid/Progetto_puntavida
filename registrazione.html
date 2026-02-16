@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+<link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <?!= include('css_comune'); ?>
+</head>
+  <body>
+    <input type="hidden" id="evento_id_hidden" value="<?= eventoInfo.codice ?>">
+    <input type="hidden" id="pr_nickname_hidden" value="<?= prNickname ?>">
+    
+    <div class="container py-5 d-flex justify-content-center">
+      <div class="card shadow-lg border-0" style="max-width: 400px; width: 100%;">
+        
+        <div class="text-center p-4">
+          <img src="<?= eventoInfo.logoUrl ?>" alt="Logo" class="logo-img">
+          <h4 class="titolo-evento mb-0 fw-bold"><?= eventoInfo.nome ?></h4>
+          <p class="sottotitolo-staff mb-0">PR: <?= prNickname ?></p>
+        </div>
+        
+        <div class="card-body p-4">
+          
+          <? if (eventoInfo.stato === "CHIUSO") { ?>
+            <div class="text-center py-4">
+              <div class="status-icon">⌛</div>
+              <h5 class="fw-bold text-uppercase">Prenotazioni Chiuse</h5>
+              <p class="small">L'evento non accetta più iscrizioni.</p>
+            </div>
+          <? } else if (eventoInfo.stato === "SOLDOUT") { ?>
+            <div class="text-center py-4">
+              <div class="status-icon">🔥</div>
+              <h5 class="fw-bold text-uppercase text-danger">Sold Out</h5>
+              <p class="small">Posti esauriti! Ci vediamo al prossimo evento.</p>
+            </div>
+          <? } else { ?>
+            
+            <div id="form-box">
+              <p class="text-center small mb-4">Compila i campi per ricevere il tuo pass via email.</p>
+              
+              <div class="mb-3">
+                <input type="text" id="nome" class="form-control" placeholder="Nome">
+              </div>
+              <div class="mb-3">
+                <input type="text" id="cognome" class="form-control" placeholder="Cognome">
+              </div>
+              <div class="mb-3">
+                <input type="email" id="email" class="form-control" placeholder="Indirizzo Email" required>
+              </div>
+              
+              <button id="btn-invia" class="btn btn-registrazione w-100 py-2 fw-bold" onclick="inviaDati()">
+                REGISTRATI ORA
+              </button>
+            </div>
+
+            <div id="loading-box" class="d-none text-center py-4">
+              <div class="spinner-border text-light" role="status"></div>
+              <p class="mt-2 small">Elaborazione in corso...</p>
+            </div>
+
+            <div id="success-box" class="d-none text-center">
+              <div class="alert alert-success small fw-bold">PRENOTAZIONE EFFETTUATA!</div>
+              <p class="small">Salva questo QR Code e mostralo all'ingresso.</p>
+              <div id="qrcode" class="d-flex justify-content-center mb-4 border p-2 bg-white"></div>
+              <button type="button" class="btn btn-outline-light w-100" onclick="nuovaPrenotazione()">
+                Nuova Prenotazione
+              </button>
+            </div>
+
+            <div id="error-box" class="d-none text-center">
+               <div style="font-size: 50px; color: #dc3545;">×</div>
+               <p id="error-message" class="text-danger small px-3 font-weight-bold"></p>
+               <button class="btn btn-outline-light btn-sm mt-3" onclick="ripristinaForm()">RIPROVA</button>
+            </div>
+
+          <? } ?>
+
+        </div>
+      </div>
+    </div>
+
+    <?!= include('js_registrazione'); ?>
+  </body>
+</html>

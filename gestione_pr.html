@@ -1,0 +1,206 @@
+<? if (typeof dashboardContext === 'undefined') { ?>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <?!= include('css_comune'); ?>
+  <style>
+    body { background-color: #000; color: #fff; padding: 20px; }
+  </style>
+<? } ?>
+
+<style>
+    .card-pr { 
+      background: #1a1a1a; /* Fallback se var non carica */
+      background: var(--bg-antracite, #1a1a1a); 
+      border: 1px solid #333; 
+      border-radius: 15px; 
+      transition: all 0.3s ease;
+    }
+    .card-pr:hover { border-color: var(--colore-brand, #1ed760); transform: translateY(-2px); }
+    .pr-inactive { opacity: 0.5; filter: grayscale(1); }
+    .status-dot {
+      height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px;
+    }
+    .dot-active { background-color: var(--colore-brand, #1ed760); }
+    .dot-inactive { background-color: #ff4444; }
+    .phone-link { color: #fff; text-decoration: none; font-weight: bold; transition: color 0.2s; }
+    .phone-link:hover { color: var(--colore-brand, #1ed760); text-decoration: underline; }
+</style>
+
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0 text-uppercase">Team PR</h3>
+      <p class="text-muted small">Gestione collaboratori</p>
+    </div>
+    <button class="btn btn-success fw-bold" onclick="apriModalePR()">
+      <i class="bi bi-person-plus-fill me-2"></i>AGGIUNGI
+    </button>
+  </div>
+
+  <div id="lista-pr" class="row g-3">
+    <div class="text-center p-5">
+      <div class="spinner-border text-success"></div>
+      <p class="mt-2 text-muted">Caricamento in corso...</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalPR" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-white">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold" id="modalPRTitolo">Nuovo PR</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formPR">
+          <input type="hidden" id="pr_id">
+          <div class="mb-3">
+            <label class="form-label small opacity-50">NICKNAME</label>
+            <input type="text" class="form-control bg-dark text-white border-secondary" id="nickname" required>
+          </div>
+          <div class="row">
+            <div class="col-6 mb-3">
+              <label class="form-label small opacity-50">NOME</label>
+              <input type="text" class="form-control bg-dark text-white border-secondary" id="nome_reale">
+            </div>
+            <div class="col-6 mb-3">
+              <label class="form-label small opacity-50">COGNOME</label>
+              <input type="text" class="form-control bg-dark text-white border-secondary" id="cognome">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small opacity-50">CELLULARE</label>
+            <input type="tel" class="form-control bg-dark text-white border-secondary" id="cellulare">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small opacity-50">EMAIL</label>
+            <input type="email" class="form-control bg-dark text-white border-secondary" id="email">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small opacity-50">STATO</label>
+            <select class="form-select bg-dark text-white border-secondary" id="pr_attivo">
+              <option value="true">ATTIVO</option>
+              <option value="false">NON ATTIVO</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-success w-100 fw-bold" onclick="inviaPR()">SALVA</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Variabili globali del modulo
+  var prLocali = [];
+  var modalPRInst = null;
+
+  // Funzione di avvio chiamata dalla Dashboard
+  window.caricaPR = function() {
+    console.log("Inizializzazione modulo PR...");
+    
+    const modalEl = document.getElementById('modalPR');
+    if (modalEl) {
+      modalPRInst = new bootstrap.Modal(modalEl);
+    }
+
+    google.script.run
+      .withSuccessHandler(renderPR)
+      .withFailureHandler(err => {
+        console.error("Errore PR:", err);
+        document.getElementById('lista-pr').innerHTML = '<div class="alert alert-danger">Errore: ' + err.message + '</div>';
+      })
+      .getListaPR();
+  };
+
+  function renderPR(lista) {
+    const container = document.getElementById('lista-pr');
+    if (!container) return;
+    container.innerHTML = "";
+    prLocali = lista || [];
+
+    if (prLocali.length === 0) {
+      container.innerHTML = '<div class="col-12 text-center p-5 text-muted">Nessun PR trovato.</div>';
+      return;
+    }
+
+    prLocali.forEach(pr => {
+      const card = document.createElement('div');
+      card.className = "col-md-4 col-lg-3";
+      const isAttivo = pr.attivo === true || pr.attivo === "true";
+      
+      card.innerHTML = `
+        <div class="card card-pr p-3 ${!isAttivo ? 'pr-inactive' : ''}" style="cursor:pointer">
+          <div class="d-flex justify-content-between align-items-center mb-2" onclick="modificaPR('${pr.id}')">
+            <span class="fw-bold text-success">@${pr.nickname || 'N/A'}</span>
+            <span class="status-dot ${isAttivo ? 'dot-active' : 'dot-inactive'}"></span>
+          </div>
+          <div onclick="modificaPR('${pr.id}')">
+            <h5 class="mb-0">${pr.nome_reale || 'Nuovo'} ${pr.cognome || ''}</h5>
+          </div>
+          <div class="small mt-3">
+            <div class="mb-1">
+              <i class="bi bi-telephone text-success me-2"></i>
+              <a href="tel:${pr.cellulare}" class="phone-link" onclick="event.stopPropagation();">
+                ${pr.cellulare || '---'}
+              </a>
+            </div>
+            <div class="text-muted" onclick="modificaPR('${pr.id}')">
+              <i class="bi bi-envelope me-2"></i>${pr.email || '---'}
+            </div>
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  window.apriModalePR = function() {
+    document.getElementById('formPR').reset();
+    document.getElementById('pr_id').value = "";
+    document.getElementById('modalPRTitolo').innerText = "Nuovo PR";
+    if (modalPRInst) modalPRInst.show();
+  };
+
+  window.modificaPR = function(id) {
+    const pr = prLocali.find(p => p.id === id);
+    if(!pr) return;
+    document.getElementById('pr_id').value = pr.id;
+    document.getElementById('nickname').value = pr.nickname || "";
+    document.getElementById('nome_reale').value = pr.nome_reale || "";
+    document.getElementById('cognome').value = pr.cognome || "";
+    document.getElementById('cellulare').value = pr.cellulare || "";
+    document.getElementById('email').value = pr.email || "";
+    document.getElementById('pr_attivo').value = (pr.attivo === true || pr.attivo === "true").toString();
+    document.getElementById('modalPRTitolo').innerText = "Modifica PR";
+    if (modalPRInst) modalPRInst.show();
+  };
+
+  window.inviaPR = function() {
+    const payload = {
+      id: document.getElementById('pr_id').value,
+      nickname: document.getElementById('nickname').value.trim(),
+      nome_reale: document.getElementById('nome_reale').value,
+      cognome: document.getElementById('cognome').value,
+      cellulare: document.getElementById('cellulare').value,
+      email: document.getElementById('email').value,
+      attivo: document.getElementById('pr_attivo').value === 'true'
+    };
+    
+    google.script.run
+      .withSuccessHandler(() => {
+        if (modalPRInst) modalPRInst.hide();
+        caricaPR();
+      })
+      .withFailureHandler(err => alert("Errore salvataggio: " + err.message))
+      .salvaPR(payload);
+  };
+
+  // Se aperto da solo
+  if (typeof dashboardContext === 'undefined') {
+    document.addEventListener('DOMContentLoaded', caricaPR);
+  }
+</script>

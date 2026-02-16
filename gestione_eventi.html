@@ -1,0 +1,326 @@
+<? if (typeof dashboardContext === 'undefined') { ?>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <?!= include('css_comune'); ?>
+  <style>
+    body { background-color: #000; color: #fff; padding: 20px; }
+  </style>
+<? } ?>
+<style>
+  .card-evento { 
+    background: #1a1a1a; 
+    border: 1px solid #333; 
+    color: white; 
+    border-radius: 15px; 
+    transition: all 0.3s ease;
+  }
+  .card-evento:hover { border-color: #1db954; transform: translateY(-3px); }
+  
+  .card-archiviato {
+    opacity: 0.6;
+    filter: grayscale(0.5);
+    border-style: dashed !important;
+  }
+
+  .animate-pulse {
+    animation: pulse-green 2s infinite;
+  }
+  @keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(29, 185, 84, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
+  }
+
+  .form-control, .form-select, .modal-content { 
+    background-color: #1a1a1a !important; 
+    color: white !important; 
+    border: 1px solid #333 !important; 
+  }
+  .form-control:focus { border-color: #1db954; box-shadow: none; }
+  .modal-header, .modal-footer { border-color: #333 !important; }
+  
+  .label-box {
+    color: white !important;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    opacity: 0.8;
+  }
+
+  .form-check-input:checked {
+    background-color: #1db954;
+    border-color: #1db954;
+  }
+</style>
+
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0 text-uppercase" style="letter-spacing: 1px;">Gestione Eventi</h3>
+      <p class="text-muted small mb-0">Monitoraggio real-time e configurazione</p>
+    </div>
+    <button class="btn btn-success fw-bold px-4 shadow-sm" onclick="apriModaleNuovo()">
+      <i class="bi bi-plus-lg me-2"></i>NUOVO EVENTO
+    </button>
+  </div>
+
+  <div class="d-flex justify-content-end mb-4">
+    <div class="form-check form-switch bg-dark border border-secondary p-2 px-4 rounded-pill shadow-sm">
+      <input class="form-check-input" type="checkbox" id="filtroPassati" onchange="renderEventi(listaEventiLocali)">
+      <label class="form-check-label small fw-bold ms-2" for="filtroPassati">Mostra anche eventi passati</label>
+    </div>
+  </div>
+
+  <div id="lista-eventi" class="row g-3">
+    <div class="text-center w-100 p-5">
+      <div class="spinner-border text-success" role="status"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalEvento" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-secondary">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="modalTitolo">Dettagli Evento</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formEvento">
+          <input type="hidden" id="id" name="id">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label label-box">Codice Evento (URL)</label>
+              <input type="text" class="form-control" id="codice_evento" placeholder="es: TECHNO_01" oninput="this.value = this.value.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').toUpperCase()" required>
+              <div class="small text-muted mt-1" style="font-size: 0.7rem; opacity: 0.6;">
+    * Gli spazi diventano "-" (es: "GALA 2026" -> "GALA-2026")
+            </div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label label-box">Nome Pubblico</label>
+              <input type="text" class="form-control" id="nome_evento" placeholder="es: Techno Night vol.1" required>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label label-box">Data Evento</label>
+              <input type="date" class="form-control" id="data_evento" onchange="suggerisciOrari(this.value)" required>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label label-box">Capienza Max</label>
+              <input type="number" class="form-control" id="max_partecipanti">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label label-box">Stato Visibilità</label>
+              <select class="form-select" id="attivo">
+                <option value="true">ATTIVO (Prenotazioni aperte)</option>
+                <option value="false">DISATTIVATO (Nascosto)</option>
+              </select>
+            </div>
+          </div>
+          <hr class="my-4 opacity-25">
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-success text-uppercase fw-bold">Fine Prenotazioni</label>
+              <input type="datetime-local" class="form-control" id="fine_prenotazione">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-success text-uppercase fw-bold">Inizio Check-in</label>
+              <input type="datetime-local" class="form-control" id="inizio_checkin">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-success text-uppercase fw-bold">Fine Check-in</label>
+              <input type="datetime-local" class="form-control" id="fine_checkin">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label label-box">Descrizione breve</label>
+            <textarea class="form-control" id="descrizione" rows="2"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-danger d-none" id="btnElimina" onclick="handleElimina()">
+          <i class="bi bi-trash me-2"></i>ELIMINA
+        </button>
+        <div class="ms-auto">
+          <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" class="btn btn-success px-4 fw-bold" onclick="handleSalva()">SALVA</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var listaEventiLocali = [];
+
+  function caricaEventi() {
+    console.log("Modulo Eventi: Caricamento dati...");
+    google.script.run
+      .withSuccessHandler(data => {
+        renderEventi(data);
+      })
+      .getListaEventi();
+  }
+
+  function suggerisciOrari(dataValue) {
+    if(!dataValue || document.getElementById('id').value !== "") return;
+    document.getElementById('fine_prenotazione').value = dataValue + "T22:00";
+    document.getElementById('inizio_checkin').value = dataValue + "T23:30";
+    let domani = new Date(dataValue);
+    domani.setDate(domani.getDate() + 1);
+    let domaniStr = domani.toISOString().split('T')[0];
+    document.getElementById('fine_checkin').value = domaniStr + "T04:00";
+  }
+
+  function renderEventi(eventi) {
+    listaEventiLocali = eventi || [];
+    const container = document.getElementById('lista-eventi');
+    container.innerHTML = "";
+    
+    const oggi = new Date().setHours(0,0,0,0);
+    const oraAttuale = new Date();
+    const mostraPassati = document.getElementById('filtroPassati').checked;
+
+    if (listaEventiLocali.length === 0) {
+      container.innerHTML = '<div class="col-12 text-center p-5 text-muted">Nessun evento trovato.</div>';
+      return;
+    }
+
+    listaEventiLocali.forEach(evt => {
+        const dataEvt = new Date(evt.data_evento).setHours(0,0,0,0);
+        const isPassato = dataEvt < oggi;
+        if (isPassato && !mostraPassati) return;
+
+        const prenotati = evt.conteggio || 0;
+        const checkin = evt.checkin_effettuati || 0;
+        const capienza = evt.max_partecipanti || 0;
+        const finePre = evt.fine_prenotazione ? new Date(evt.fine_prenotazione) : null;
+        const inizoCk = evt.inizio_checkin ? new Date(evt.inizio_checkin) : null;
+        const fineCk = evt.fine_checkin ? new Date(evt.fine_checkin) : null;
+
+        let badgePrenotazioni, badgeTempo;
+        if (isPassato) {
+            badgePrenotazioni = '<span class="badge bg-dark border border-secondary text-muted">CHIUSO</span>';
+            badgeTempo = '<span class="badge bg-dark border border-secondary text-muted text-uppercase">Archiviato</span>';
+        } else {
+            badgePrenotazioni = '<span class="badge bg-success">PRENOTAZIONI APERTE</span>';
+            if (capienza > 0 && prenotati >= capienza) {
+                badgePrenotazioni = '<span class="badge bg-danger">SOLD OUT</span>';
+            } else if (finePre && oraAttuale > finePre) {
+                badgePrenotazioni = '<span class="badge bg-warning text-dark">PRENOTAZIONI CHIUSE</span>';
+            } else if (!evt.attivo) {
+                badgePrenotazioni = '<span class="badge bg-secondary">OFFLINE</span>';
+            }
+            badgeTempo = '<span class="badge border border-secondary text-muted">IN ATTESA</span>';
+            if (inizoCk && fineCk && oraAttuale >= inizoCk && oraAttuale <= fineCk) {
+                badgeTempo = '<span class="badge bg-primary animate-pulse">CHECK-IN LIVE</span>';
+            } else if (fineCk && oraAttuale > fineCk) {
+                badgeTempo = '<span class="badge bg-dark border border-secondary">TERMINATO</span>';
+            }
+        }
+
+        container.innerHTML += `
+        <div class="col-md-6 col-lg-4">
+          <div class="card card-evento p-3 h-100 shadow-sm ${isPassato ? 'card-archiviato' : ''}" 
+                onclick="apriModaleModifica('${evt.id}')" style="cursor:pointer">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div class="d-flex flex-column gap-1">
+                ${badgePrenotazioni}
+                ${badgeTempo}
+              </div>
+              <span class="small fw-bold text-success" style="background: rgba(29,185,84,0.1); padding: 2px 8px; border-radius: 5px;">${evt.codice_evento}</span>
+            </div>
+            <h5 class="fw-bold mb-1 text-white">${evt.nome_evento}</h5>
+            <div class="small text-white opacity-50 mb-3">
+              <i class="bi bi-calendar3 me-1 text-success"></i> ${new Date(evt.data_evento).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}
+            </div>
+            <div class="row g-0 mt-auto pt-3 border-top border-secondary text-center">
+               <div class="col-6 border-end border-secondary">
+                  <div class="label-box">Prenotati</div>
+                  <div class="fw-bold fs-5 ${!isPassato && capienza > 0 && prenotati >= capienza ? 'text-danger' : 'text-success'}">
+                    ${prenotati} <span class="text-white opacity-50 fs-6" style="font-weight:normal">/ ${capienza || '∞'}</span>
+                  </div>
+               </div>
+               <div class="col-6">
+                  <div class="label-box">Check-in</div>
+                  <div class="fw-bold fs-5 text-info">${checkin}</div>
+               </div>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  function apriModaleNuovo() {
+    document.getElementById('formEvento').reset();
+    document.getElementById('id').value = "";
+    document.getElementById('btnElimina').classList.add('d-none');
+    document.getElementById('modalTitolo').innerText = "Crea Nuovo Evento";
+    var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEvento'));
+    m.show();
+  }
+
+  function apriModaleModifica(id) {
+    const evt = listaEventiLocali.find(e => e.id === id);
+    if (!evt) return;
+    document.getElementById('id').value = evt.id;
+    document.getElementById('codice_evento').value = evt.codice_evento;
+    document.getElementById('nome_evento').value = evt.nome_evento;
+    document.getElementById('data_evento').value = evt.data_evento;
+    document.getElementById('attivo').value = evt.attivo.toString();
+    document.getElementById('max_partecipanti').value = evt.max_partecipanti;
+    document.getElementById('descrizione').value = evt.descrizione || "";
+    if(evt.fine_prenotazione) document.getElementById('fine_prenotazione').value = evt.fine_prenotazione.slice(0,16);
+    if(evt.inizio_checkin) document.getElementById('inizio_checkin').value = evt.inizio_checkin.slice(0,16);
+    if(evt.fine_checkin) document.getElementById('fine_checkin').value = evt.fine_checkin.slice(0,16);
+    document.getElementById('btnElimina').classList.remove('d-none');
+    document.getElementById('modalTitolo').innerText = "Modifica Evento";
+    var m = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalEvento'));
+    m.show();
+  }
+
+  function handleSalva() {
+    const payload = {
+      id: document.getElementById('id').value,
+      codice_evento: document.getElementById('codice_evento').value.toUpperCase().trim(),
+      nome_evento: document.getElementById('nome_evento').value,
+      data_evento: document.getElementById('data_evento').value,
+      attivo: document.getElementById('attivo').value === 'true',
+      max_partecipanti: parseInt(document.getElementById('max_partecipanti').value) || 0,
+      fine_prenotazione: document.getElementById('fine_prenotazione').value,
+      inizio_checkin: document.getElementById('inizio_checkin').value,
+      fine_checkin: document.getElementById('fine_checkin').value,
+      descrizione: document.getElementById('descrizione').value
+    };
+    if (!payload.codice_evento || !payload.nome_evento || !payload.data_evento) {
+      alert("⚠️ Campi obbligatori mancanti!");
+      return;
+    }
+    google.script.run.withSuccessHandler(res => {
+      if(res.success) { 
+        bootstrap.Modal.getInstance(document.getElementById('modalEvento')).hide();
+        caricaEventi(); 
+      } else { alert("Errore: " + res.msg); }
+    }).salvaEvento(payload);
+  }
+
+  function handleElimina() {
+    const id = document.getElementById('id').value;
+    const codice = document.getElementById('codice_evento').value;
+    if(!confirm(`Sei sicuro di voler eliminare l'evento ${codice}?`)) return;
+    google.script.run.withSuccessHandler(res => {
+      if(res.success) { 
+        bootstrap.Modal.getInstance(document.getElementById('modalEvento')).hide();
+        caricaEventi(); 
+      } else { alert(res.msg); }
+    }).eliminaEvento(id, codice);
+  }
+  // Se la pagina è aperta da sola (non nella dashboard), carichiamo i dati all'avvio
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof cambiaVista === 'undefined') { 
+      caricaEventi(); 
+    }
+  });
+</script>

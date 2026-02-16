@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body { background-color: #000; color: #fff; }
+    .card { background-color: #121212; border: 1px solid #333; }
+    .form-select, .form-control { background-color: #000 !important; color: #fff !important; border-color: #444 !important; }
+    .form-select:focus { border-color: #1ed760; box-shadow: none; }
+    .code-box { background: #000; border: 1px solid #1ed760; font-family: monospace; padding: 10px; border-radius: 5px; color: #1ed760; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+<div class="container-fluid py-3">
+  <div class="mb-4">
+    <h2 class="fw-bold text-warning"><i class="bi bi-link-45deg me-2"></i>LINK GENERATOR</h2>
+    
+    <div class="btn-group w-100 mb-3" role="group">
+      <button type="button" id="btn-mode-pr" class="btn btn-warning fw-bold" onclick="setTipo('prenotazione')">
+        <i class="bi bi-person-plus me-2"></i>PRENOTAZIONI (PR)
+      </button>
+      <button type="button" id="btn-mode-staff" class="btn btn-outline-info fw-bold" onclick="setTipo('scanner')">
+        <i class="bi bi-qr-code-scan me-2"></i>SCANNER (STAFF)
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <div class="card p-4">
+        <div class="mb-3">
+          <label class="form-label small fw-bold text-uppercase text-warning">1. Evento</label>
+          <select id="select-evento" class="form-select">
+            <option value="">Caricamento...</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label id="label-destinatario" class="form-label small fw-bold text-uppercase text-warning">2. Destinatario PR</label>
+          <select id="select-destinatario" class="form-select">
+            <option value="">Caricamento...</option>
+          </select>
+        </div>
+
+        <button id="btn-azione" class="btn btn-warning btn-lg w-100 fw-bold" onclick="generaESalva()">
+          GENERA E ARCHIVIA
+        </button>
+
+        <div id="result-area" class="mt-4 d-none">
+          <div class="code-box mb-3" id="final-link"></div>
+          <button class="btn btn-success w-100 mb-2" onclick="copyLink()">COPIA</button>
+          <a id="wa-link" target="_blank" class="btn btn-outline-success w-100">WHATSAPP</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card p-3">
+        <h6 class="text-uppercase opacity-50 mb-3">Cronologia Recente</h6>
+        <div class="table-responsive">
+          <table class="table table-dark table-sm">
+            <thead>
+              <tr class="small opacity-50">
+                <th>Evento</th>
+                <th>Per</th>
+                <th>Link</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="table-archive-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Stato globale del modulo
+  var stato = {
+    tipo: 'prenotazione',
+    dati: null
+  };
+
+  // Funzione di avvio forzato
+  window.onload = function() {
+    console.log("Inizializzazione Link Generator...");
+    caricaDatiSempre();
+  };
+
+  // Fallback per caricamento tramite Dashboard
+  function caricaGenerator() {
+    caricaDatiSempre();
+  }
+
+  function caricaDatiSempre() {
+    // Proviamo a prendere i dati dalla cache globale o dal server
+    if (window.cacheDati) {
+      stato.dati = window.cacheDati;
+      renderFiltri();
+      caricaArchivio();
+    } else {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          stato.dati = res;
+          renderFiltri();
+          caricaArchivio();
+        })
+        .getTuttiIDati();
+    }
+  }
+
+  function setTipo(nuovoTipo) {
+    stato.tipo = nuovoTipo;
+    
+    // Elementi UI da aggiornare
+    const bPr = document.getElementById('btn-mode-pr');
+    const bSt = document.getElementById('btn-mode-staff');
+    const labelDest = document.getElementById('label-destinatario');
+    const labelEv = document.querySelector('label.text-warning, label.text-info'); // Prende la prima label (Evento)
+    const btnAzione = document.getElementById('btn-azione');
+    const selEvento = document.getElementById('select-evento');
+    const selDest = document.getElementById('select-destinatario');
+
+    // 1. Pulizia obbligatoria: nascondi il link della modalità precedente
+    document.getElementById('result-area').classList.add('d-none');
+    document.getElementById('final-link').innerText = "";
+
+    if(nuovoTipo === 'prenotazione') {
+      // --- MODALITÀ PR (GIALLO) ---
+      bPr.className = "btn btn-warning fw-bold";
+      bSt.className = "btn btn-outline-info fw-bold";
+      
+      // Cambio colore etichette
+      labelEv.className = "form-label small fw-bold text-uppercase text-warning";
+      labelDest.innerText = "2. Destinatario PR";
+      labelDest.className = "form-label small fw-bold text-uppercase text-warning";
+      
+      // Bordi Select
+      selEvento.style.borderColor = "#ffc107";
+      selDest.style.borderColor = "#ffc107";
+      
+      btnAzione.className = "btn btn-warning btn-lg w-100 fw-bold";
+      btnAzione.innerHTML = '<i class="bi bi-person-plus me-2"></i>GENERA LINK PR';
+    } else {
+      // --- MODALITÀ STAFF (CELESTE) ---
+      bPr.className = "btn btn-outline-warning fw-bold";
+      bSt.className = "btn btn-info fw-bold";
+      
+      // Cambio colore etichette
+      labelEv.className = "form-label small fw-bold text-uppercase text-info";
+      labelDest.innerText = "2. Destinatario STAFF";
+      labelDest.className = "form-label small fw-bold text-uppercase text-info";
+      
+      // Bordi Select
+      selEvento.style.borderColor = "#0dcaf0";
+      selDest.style.borderColor = "#0dcaf0";
+      
+      btnAzione.className = "btn btn-info btn-lg w-100 fw-bold";
+      btnAzione.innerHTML = '<i class="bi bi-qr-code-scan me-2"></i>GENERA LINK SCANNER';
+    }
+    renderFiltri();
+  }
+
+  function renderFiltri() {
+    if(!stato.dati) return;
+    
+    const oggi = new Date().toISOString().split('T')[0];
+    const selectEv = document.getElementById('select-evento');
+    const selectDest = document.getElementById('select-destinatario');
+
+    // Popola Eventi
+    const evts = stato.dati.eventi.filter(e => e.data_evento >= oggi);
+    selectEv.innerHTML = evts.map(e => `<option value="${e.id}" data-codice="${e.codice_evento}">${e.nome_evento}</option>`).join('');
+
+    // Popola Destinatari
+    const lista = stato.tipo === 'prenotazione' ? stato.dati.pr : stato.dati.staff;
+    selectDest.innerHTML = lista.map(i => `<option value="${i.id}" data-nick="${i.nickname}">${i.nickname.toUpperCase()}</option>`).join('');
+  }
+
+  function generaESalva() {
+    const evEl = document.getElementById('select-evento');
+    const dsEl = document.getElementById('select-destinatario');
+    
+    const evId = evEl.value;
+    const evCod = evEl.options[evEl.selectedIndex].getAttribute('data-codice');
+    const dsId = dsEl.value;
+    const dsNick = dsEl.options[dsEl.selectedIndex].getAttribute('data-nick');
+
+    // Recupero URL dinamico
+    google.script.run.withSuccessHandler(function(urlBase) {
+      let finalLink = "";
+      if(stato.tipo === 'prenotazione') {
+        finalLink = urlBase + "?page=registrazione&evento=" + evCod + "&pr=" + dsNick;
+      } else {
+        finalLink = urlBase + "?page=scanner&evento=" + evCod + "&staff=" + dsNick;
+      }
+
+      document.getElementById('final-link').innerText = finalLink;
+      document.getElementById('result-area').classList.remove('d-none');
+      document.getElementById('wa-link').href = "https://wa.me/?text=" + encodeURIComponent(finalLink);
+
+      // Salvataggio DB
+      const record = {
+        tipo: stato.tipo,
+        evento_id: evId,
+        pr_id: stato.tipo === 'prenotazione' ? dsId : null,
+        staff_id: stato.tipo === 'scanner' ? dsId : null,
+        url_generato: finalLink
+      };
+      google.script.run.withSuccessHandler(caricaArchivio).dbSaveLink(record);
+    }).getAppUrl(); // Richiede funzione getAppUrl in Database.gs
+  }
+
+  function caricaArchivio() {
+    google.script.run.withSuccessHandler(function(links) {
+      const tbody = document.getElementById('table-archive-body');
+      tbody.innerHTML = links.map(l => `
+        <tr>
+          <td><small>${l.eventi?.nome_evento || '...'}</small></td>
+          <td><span class="badge bg-dark">${l.pr?.nickname || l.staff?.nickname || 'N/D'}</span></td>
+          <td><small>...</small></td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-success" onclick="copyValue('${l.url_generato}')"><i class="bi bi-clipboard"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }).dbGetArchivioLinks();
+  }
+
+  function copyLink() { copyValue(document.getElementById('final-link').innerText); }
+  function copyValue(val) { navigator.clipboard.writeText(val); alert("Copiato!"); }
+</script>
+</body>
+</html>

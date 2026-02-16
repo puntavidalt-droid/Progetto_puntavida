@@ -1,0 +1,301 @@
+<? if (typeof moduloCorrente === 'undefined') { ?>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body { background-color: #000; color: #fff; padding: 10px; }
+  </style>
+<? } ?>
+
+<?!= include('css_comune'); ?>
+
+<div class="container-fluid py-3" id="modulo-gestione">
+  <div class="card bg-dark border-secondary shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="small opacity-50 text-uppercase fw-bold mb-1 d-block text-success">Evento</label>
+          <select id="gestione-select-evento" class="form-select bg-black text-white border-secondary" onchange="cambiaFiltriGestione()">
+            <option value="">Caricamento eventi...</option>
+          </select>
+        </div>
+        
+        <div class="col-12 col-md-4">
+          <label class="small opacity-50 text-uppercase fw-bold mb-1 d-block text-info">Filtro PR</label>
+          <select id="gestione-select-pr" class="form-select bg-black text-white border-secondary" onchange="cambiaFiltriGestione()">
+            <option value="ALL">Tutti i PR (Global)</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-4 d-flex gap-2 justify-content-md-end">
+          <button class="btn btn-outline-success w-100 w-md-auto" onclick="homeInviaReportAction()" title="Invia Report Email">
+            <i class="bi bi-envelope-paper me-1"></i> REPORT
+          </button>
+          <button class="btn btn-secondary w-100 w-md-auto" onclick="caricaDatiGestione()" title="Aggiorna">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <button class="btn btn-dark border-secondary w-100 w-md-auto" onclick="window.location.href=window.location.pathname" title="Dashboard">
+            <i class="bi bi-house"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card bg-dark border-secondary shadow-sm">
+    <div class="table-responsive" style="max-height: 75vh;">
+      <table class="table table-dark table-hover align-middle mb-0">
+        <thead class="sticky-top" style="z-index: 10; background-color: #121212;">
+          <tr class="small text-uppercase opacity-50">
+            <th>Cliente</th>
+            <th>PR</th>
+            <th class="text-center">Stato</th>
+            <th class="text-end px-4">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="corpo-tabella-gestione">
+          <tr><td colspan="4" class="text-center py-5"><div class="spinner-border text-success"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Personalizzazione righe */
+  .riga-entrato { border-left: 4px solid #1db954 !important; background-color: rgba(29, 185, 84, 0.05) !important; }
+  
+  /* Select e Input */
+  .form-select { background-color: #000 !important; color: #fff !important; border: 1px solid #333 !important; }
+  .form-select:focus { border-color: #1db954 !important; box-shadow: none !important; }
+
+  /* Bottoni PuntaVida Style */
+  #modulo-gestione .btn-outline-success, 
+  #modulo-gestione .btn-secondary,
+  #modulo-gestione .btn-dark {
+    border: 1px solid #1db954 !important;
+    color: #1db954 !important;
+    background: transparent !important;
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 0.8rem;
+  }
+
+  #modulo-gestione .btn-outline-success:hover,
+  #modulo-gestione .btn-secondary:hover,
+  #modulo-gestione .btn-dark:hover {
+    background: #1db954 !important;
+    color: #000 !important;
+  }
+
+  /* Tasti Azione Specifici */
+  .btn-outline-warning { color: #ffc107 !important; border-color: #ffc107 !important; }
+  .btn-outline-warning:hover { background: #ffc107 !important; color: #000 !important; }
+  .btn-outline-danger { color: #dc3545 !important; border-color: #dc3545 !important; }
+  .btn-outline-danger:hover { background: #dc3545 !important; color: #fff !important; }
+</style>
+
+<script>
+  // 1. Variabili Globali di Stato
+  let G_EVENTO_ID = window.filtroGestioneEvento || window.eventoSelezionatoManualmente || null;
+  let G_PR_NICK = window.filtroGestionePR || "ALL";
+  let DATI_LOCALI = [];
+  let CHECK_IN_APERTO_SERVER = false;
+
+  // 2. Inizializzazione
+  function inizializzaGestione() {
+    caricaDatiGestione();
+  }
+
+  // 3. Caricamento Dati dal Server
+  function caricaDatiGestione() {
+    const corpo = document.getElementById('corpo-tabella-gestione');
+    if (corpo) corpo.innerHTML = '<tr><td colspan="4" class="text-center py-5"><div class="spinner-border text-success"></div></td></tr>';
+    
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!res) return;
+        
+        DATI_LOCALI = res.prenotazioni || [];
+        CHECK_IN_APERTO_SERVER = res.checkInAperto;
+        
+        if (!G_EVENTO_ID) G_EVENTO_ID = res.idSelezionato;
+
+        popolaSelettori(res.listaEventi || [], res.listaPR || []);
+        renderizzaTabellaGestione();
+        
+        // Pulizia filtri globali dopo il primo utilizzo
+        window.filtroGestionePR = null;
+        window.filtroGestioneEvento = null;
+      })
+      .getDatiGestionePrenotazioni(G_EVENTO_ID);
+  }
+
+  // 4. Rendering Tabella
+  function renderizzaTabellaGestione() {
+    const corpo = document.getElementById('corpo-tabella-gestione');
+    if (!corpo) return;
+
+    // Filtro PR (Case-insensitive e trim)
+    let filtrati = (G_PR_NICK === "ALL") 
+      ? DATI_LOCALI 
+      : DATI_LOCALI.filter(p => p.pr_nickname && p.pr_nickname.toLowerCase().trim() === G_PR_NICK.toLowerCase().trim());
+
+    if (filtrati.length === 0) {
+      corpo.innerHTML = '<tr><td colspan="4" class="text-center py-5 opacity-50">Nessuna prenotazione trovata.</td></tr>';
+      return;
+    }
+
+    corpo.innerHTML = filtrati.map(p => {
+      const entrato = (p.entrato === true || String(p.entrato) === "true");
+      
+      let htmlAzioneCheckIn = "";
+      if (entrato) {
+        htmlAzioneCheckIn = `<button class="btn btn-sm btn-success disabled" style="background:#1db954 !important; border:none;"><i class="bi bi-check-lg text-black"></i></button>`;
+      } else if (CHECK_IN_APERTO_SERVER) {
+        htmlAzioneCheckIn = `<button class="btn btn-sm btn-outline-success" onclick="eseguiCheckIn('${p.id}')" title="Check-in Manuale"><i class="bi bi-person-check"></i></button>`;
+      } else {
+        htmlAzioneCheckIn = `<button class="btn btn-sm btn-dark disabled" title="Check-in non ancora aperto"><i class="bi bi-lock-fill opacity-25"></i></button>`;
+      }
+
+      return `
+        <tr class="${entrato ? 'riga-entrato' : ''}">
+          <td>
+            <div class="fw-bold">${p.cliente_nome} ${p.cliente_cognome}</div>
+            <div class="small opacity-50">${p.cliente_email || ''}</div>
+          </td>
+          <td class="text-success small fw-bold">@${p.pr_nickname}</td>
+          <td class="text-center">
+             ${entrato ? '<span class="badge bg-success text-black">ENTRATO</span>' : '<span class="badge border border-secondary opacity-50">ATTESA</span>'}
+          </td>
+          <td class="text-end px-3">
+            <div class="btn-group">
+              ${htmlAzioneCheckIn}
+              <button class="btn btn-sm btn-outline-warning ms-1" onclick="reinviaQR('${p.id}')"><i class="bi bi-envelope"></i></button>
+              <button class="btn btn-sm btn-outline-danger ms-1" onclick="annullaPrenotazione('${p.id}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // 5. Gestione Report Email
+  function homeInviaReportAction() {
+    if (!G_EVENTO_ID) return;
+    
+    const prSelezionato = document.getElementById('gestione-select-pr').value;
+    const isGlobal = (prSelezionato === "ALL");
+    
+    // Recupero email dinamica dal database
+    google.script.run.withSuccessHandler(emailPredefinita => {
+      Swal.fire({
+        title: 'Invia Report CSV',
+        text: isGlobal ? "Il report globale verrà inviato a:" : `Il report di @${prSelezionato} verrà inviato a:`,
+        input: 'email',
+        inputValue: emailPredefinita || '',
+        showCancelButton: true,
+        confirmButtonText: 'INVIA ORA',
+        cancelButtonText: 'ANNULLA',
+        background: '#1e1e1e',
+        color: '#fff',
+        confirmButtonColor: '#1db954'
+      }).then((result) => {
+        if (result.isConfirmed && result.value) {
+          Swal.fire({ title: 'Invio...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }, background: '#1e1e1e', color: '#fff' });
+          
+          google.script.run.withSuccessHandler(msg => {
+            Swal.fire({ title: 'Esito', text: msg, icon: 'success', background: '#1e1e1e', color: '#fff' });
+          }).homeInviaReport(G_EVENTO_ID, isGlobal ? null : prSelezionato, result.value);
+        }
+      });
+    }).getEmailPerReport(prSelezionato);
+  }
+
+  // 6. Azioni Prenotazione
+  function eseguiCheckIn(id) {
+    Swal.fire({
+      title: 'Confermi Ingresso?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'SÌ, ENTRA',
+      background: '#1e1e1e',
+      color: '#fff',
+      confirmButtonColor: '#1db954'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        google.script.run.withSuccessHandler(successo => {
+          if (successo) {
+            Swal.fire({ title: 'Entrato!', icon: 'success', background: '#1e1e1e', color: '#fff', timer: 1500, showConfirmButton: false });
+            caricaDatiGestione();
+          }
+        }).azioneCheckInManuale(id);
+      }
+    });
+  }
+
+  function reinviaQR(id) {
+    Swal.fire({
+      title: 'Reinviare Email?',
+      text: "Verrà inviata nuovamente l'email con il QR Code originale",
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'SÌ, REINVIA',
+      background: '#1e1e1e',
+      color: '#fff',
+      confirmButtonColor: '#1db954'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({ title: 'Invio...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }, background: '#1e1e1e', color: '#fff' });
+        google.script.run.withSuccessHandler(r => {
+          Swal.fire({ title: r ? 'Inviato!' : 'Errore', icon: r ? 'success' : 'error', background: '#1e1e1e', color: '#fff' });
+        }).azioneReinviaQR(id);
+      }
+    });
+  }
+
+  function annullaPrenotazione(id) {
+    Swal.fire({
+      title: 'Eliminare?',
+      text: "L'azione è definitiva",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'ELIMINA',
+      background: '#1e1e1e',
+      color: '#fff'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        google.script.run.withSuccessHandler(r => {
+          if(r) {
+            Swal.fire({ title: 'Eliminato', icon: 'success', background: '#1e1e1e', color: '#fff', timer: 1000, showConfirmButton: false });
+            caricaDatiGestione();
+          }
+        }).azioneAnnullaPrenotazione(id);
+      }
+    });
+  }
+
+  // 7. Utility Selettori
+  function popolaSelettori(eventi, prs) {
+    const selEv = document.getElementById('gestione-select-evento');
+    if (selEv) {
+      selEv.innerHTML = eventi.sort((a,b) => new Date(b.data_evento) - new Date(a.data_evento))
+        .map(e => `<option value="${e.id}" ${e.id == G_EVENTO_ID ? 'selected' : ''}>${e.nome_evento}</option>`).join('');
+    }
+
+    const selPR = document.getElementById('gestione-select-pr');
+    if (selPR) {
+      selPR.innerHTML = '<option value="ALL">Tutti i PR (Global)</option>' + 
+        prs.map(p => `<option value="${p.nickname}" ${p.nickname === G_PR_NICK ? 'selected' : ''}>@${p.nickname}</option>`).join('');
+    }
+  }
+
+  function cambiaFiltriGestione() {
+    G_EVENTO_ID = document.getElementById('gestione-select-evento').value;
+    G_PR_NICK = document.getElementById('gestione-select-pr').value;
+    caricaDatiGestione();
+  }
+
+  // Avvio
+  inizializzaGestione();
+</script>

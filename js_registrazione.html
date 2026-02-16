@@ -1,0 +1,112 @@
+<script>
+  let intervalMsg; // Variabile globale per fermare il timer dei messaggi
+
+  function inviaDati() {
+    const nome = document.getElementById('nome').value.trim();
+    const cognome = document.getElementById('cognome').value.trim();
+    const email = document.getElementById('email').value.trim();
+    
+    // Leggiamo i valori dai campi hidden
+    const eventoCodice = document.getElementById('evento_id_hidden').value;
+    const prNickname = document.getElementById('pr_nickname_hidden').value;
+
+    if (!nome || !cognome || !email) {
+      alert("Per favore, compila tutti i campi.");
+      return;
+    }
+
+    // 1. Interfaccia: Feedback immediato
+    const btn = document.getElementById('btn-invia');
+    if(btn) btn.disabled = true; // Evita doppi clic selvaggi
+
+    document.getElementById('form-box').classList.add('d-none');
+    const loadingBox = document.getElementById('loading-box');
+    const loadingText = loadingBox.querySelector('p');
+    loadingBox.classList.remove('d-none');
+
+    // 2. TRUCCO VELOCITÀ PERCEPITA: Messaggi che cambiano ogni 800ms
+    const messaggi = ["Verifica disponibilità...", "Creazione pass...", "Quasi fatto...", "Inviando email..."];
+    let mIndex = 0;
+    loadingText.innerText = messaggi[mIndex];
+    
+    intervalMsg = setInterval(() => {
+      mIndex++;
+      if (messaggi[mIndex]) {
+        loadingText.innerText = messaggi[mIndex];
+      }
+    }, 800);
+
+    const payload = {
+      nome: nome,
+      cognome: cognome,
+      email: email,
+      evento: eventoCodice,
+      pr: prNickname
+    };
+
+    // 3. Chiamata al server (Logic_Registrazione.gs)
+    google.script.run
+      .withSuccessHandler(function(res) {
+        clearInterval(intervalMsg); // Ferma i messaggi dinamici
+        document.getElementById('loading-box').classList.add('d-none');
+        
+        if (res.success) {
+          document.getElementById('success-box').classList.remove('d-none');
+          // Pulizia QR precedente
+          document.getElementById('qrcode').innerHTML = "";
+          // Genera il QR Code locale (molto più veloce)
+          new QRCode(document.getElementById("qrcode"), {
+            text: res.token,
+            width: 180,
+            height: 180,
+            correctLevel : QRCode.CorrectLevel.L
+          });
+        } else {
+          if(btn) btn.disabled = false;
+          mostraErrore(res.msg);
+        }
+      })
+      .withFailureHandler(function(err) {
+        clearInterval(intervalMsg);
+        if(btn) btn.disabled = false;
+        document.getElementById('loading-box').classList.add('d-none');
+        mostraErrore("Errore di connessione: " + err.message);
+      })
+      .salvaPrenotazione(payload);
+  }
+
+  function mostraErrore(messaggio) {
+    document.getElementById('error-box').classList.remove('d-none');
+    document.getElementById('error-message').innerText = messaggio;
+  }
+
+  function ripristinaForm() {
+    const btn = document.getElementById('btn-invia');
+    if(btn) {
+      btn.disabled = false;
+      btn.innerHTML = 'REGISTRATI ORA';
+    }
+    document.getElementById('error-box').classList.add('d-none');
+    document.getElementById('form-box').classList.remove('d-none');
+  }
+
+  function nuovaPrenotazione() {
+    // 1. Pulisce i campi manualmente
+    document.getElementById('nome').value = "";
+    document.getElementById('cognome').value = "";
+    document.getElementById('email').value = "";
+    
+    // Riabilita il bottone
+    const btn = document.getElementById('btn-invia');
+    if(btn) btn.disabled = false;
+
+    // 2. Nasconde il box del successo
+    document.getElementById('success-box').classList.add('d-none');
+    
+    // 3. Mostra di nuovo il modulo di registrazione
+    document.getElementById('form-box').classList.remove('d-none');
+    
+    // 4. Svuota il QR code precedente
+    document.getElementById('qrcode').innerHTML = "";
+  }
+</script>

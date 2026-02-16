@@ -1,0 +1,251 @@
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-4 bg-dark p-2 rounded shadow-sm border border-secondary">
+    <div class="flex-grow-1">
+      <select id="select-evento-live" class="form-select form-select-lg bg-black text-white border-success" 
+              style="font-weight: bold; font-size: 1.1rem; border-width: 2px; width: 100%;" 
+              onchange="cambiaEventoLive(this.value)">
+        <option value="">Caricamento...</option>
+      </select>
+    </div>
+    
+    <div id="status-badge" class="ms-3 me-2">
+        <div id="live-indicator" class="spinner-grow text-success d-none" 
+             style="width: 1.2rem; height: 1.2rem;" 
+             role="status">
+        </div>
+    </div>
+  </div>
+
+  <div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card bg-dark border-secondary p-3 text-center h-100 shadow-sm">
+        <small class="text-uppercase opacity-50 fw-bold" style="font-size: 0.7rem;">Prenotazioni</small>
+        <h1 id="kpi-prenotati" class="fw-bold mb-0">0</h1>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card bg-dark border-info p-3 text-center h-100 shadow-sm">
+        <small class="text-uppercase text-info fw-bold" style="font-size: 0.7rem;">Check-in</small>
+        <h1 id="kpi-entrati" class="fw-bold mb-0 text-info">0</h1>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card bg-dark border-secondary p-3 text-center h-100 shadow-sm">
+        <small class="text-uppercase opacity-50 fw-bold" style="font-size: 0.7rem;">Posti Liberi</small>
+        <h1 id="kpi-rimanenti" class="fw-bold mb-0 text-warning">0</h1>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card bg-dark border-secondary p-3 text-center h-100 shadow-sm">
+        <small class="text-uppercase opacity-50 fw-bold" style="font-size: 0.7rem;">% Occupazione</small>
+        <h1 id="kpi-perc" class="fw-bold mb-0">0%</h1>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card bg-dark border-secondary p-3 shadow-sm">
+        <h6 class="fw-bold mb-3 text-uppercase opacity-75">Andamento Prenotazioni</h6>
+        <div style="height: 200px;">
+          <canvas id="bookingChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-5">
+      <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+           <h6 class="fw-bold mb-0 text-success text-uppercase">Performance PR</h6>
+           <small class="text-muted" style="font-size: 0.6rem;">Clicca per dettagli</small>
+        </div>
+        <div id="classifica-pr-container" class="overflow-auto" style="max-height: 450px;">
+          <div class="text-center p-4 opacity-50">Nessun dato</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+           <h6 class="fw-bold mb-0 text-uppercase">Ultimi Iscritti</h6>
+           <button class="btn btn-sm btn-success px-3" onclick="apriGestione()">
+             <i class="bi bi-list-check me-1"></i> Vedi Lista Completa
+           </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-dark table-hover align-middle mb-0">
+            <tbody id="tabella-live-body" class="small"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.timerLiveHome = window.timerLiveHome || null;
+  window.eventoSelezionatoManualmente = window.eventoSelezionatoManualmente || null;
+  let EVENTO_ID = null;
+  let MAX_POSTI = 0;
+  let listaEventiLive = [];
+  let myChart = null;
+
+  function caricaHome() {
+    if (window.timerLiveHome) clearInterval(window.timerLiveHome);
+
+    google.script.run
+      .withSuccessHandler(res => {
+        const oggi = new Date().setHours(0,0,0,0);
+        listaEventiLive = res.eventi.sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
+
+        const select = document.getElementById('select-evento-live');
+        select.innerHTML = listaEventiLive.map(e => 
+          `<option value="${e.id}">${e.nome_evento} (${new Date(e.data_evento).toLocaleDateString()})</option>`
+        ).join('');
+
+        let idDaCaricare = window.eventoSelezionatoManualmente;
+        if (!idDaCaricare) {
+          const prossimo = listaEventiLive.find(e => new Date(e.data_evento).setHours(0,0,0,0) >= oggi);
+          idDaCaricare = prossimo ? prossimo.id : (listaEventiLive[0] ? listaEventiLive[0].id : null);
+        }
+
+        if(idDaCaricare) {
+          select.value = idDaCaricare;
+          cambiaEventoLive(idDaCaricare, false);
+        }
+      })
+      .getTuttiIDati();
+  }
+
+  function cambiaEventoLive(id, daUtente = true) {
+    if (!id) return;
+    if (daUtente) window.eventoSelezionatoManualmente = id;
+
+    const evento = listaEventiLive.find(e => e.id == id);
+    if (!evento) return;
+
+    EVENTO_ID = evento.id;
+    MAX_POSTI = evento.max_partecipanti || 0;
+    
+    document.getElementById('live-indicator').classList.remove('d-none');
+    recuperaDatiLive();
+    
+    if (window.timerLiveHome) clearInterval(window.timerLiveHome);
+    window.timerLiveHome = setInterval(recuperaDatiLive, 30000);
+  }
+
+  function recuperaDatiLive() {
+    if (!EVENTO_ID) return;
+    document.getElementById('live-indicator').style.opacity = "1";
+
+    google.script.run
+      .withSuccessHandler(prenotazioni => {
+        aggiornaInterfaccia(prenotazioni);
+        document.getElementById('live-indicator').style.opacity = "0.3";
+      })
+      .homeGetDatiLive(EVENTO_ID);
+
+    google.script.run
+      .withSuccessHandler(res => {
+        renderizzaGrafico(res.labels, res.values);
+      })
+      .homeGetDatiGrafico(EVENTO_ID);
+  }
+
+  function renderizzaGrafico(labels, values) {
+    const canvas = document.getElementById('bookingChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (myChart) myChart.destroy();
+
+    myChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Prenotazioni',
+          data: values,
+          borderColor: '#198754',
+          backgroundColor: 'rgba(25, 135, 84, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  function aggiornaInterfaccia(dati) {
+    if (!dati) return;
+    const numPrenotati = dati.length;
+    const numEntrati = dati.filter(p => p.entrato === true || String(p.entrato) === "true").length;
+    
+    document.getElementById('kpi-prenotati').innerText = numPrenotati;
+    document.getElementById('kpi-entrati').innerText = numEntrati;
+    
+    const rimanenti = MAX_POSTI - numPrenotati;
+    const kpiRimanenti = document.getElementById('kpi-rimanenti');
+    kpiRimanenti.innerText = rimanenti > 0 ? rimanenti : "SOLD OUT";
+    kpiRimanenti.className = rimanenti <= 5 ? "fw-bold mb-0 text-danger" : "fw-bold mb-0 text-warning";
+    
+    const perc = MAX_POSTI > 0 ? Math.round((numPrenotati / MAX_POSTI) * 100) : 0;
+    document.getElementById('kpi-perc').innerText = perc + "%";
+
+    const prStats = {};
+    dati.forEach(p => {
+      const nick = p.pr_nickname || "Generico";
+      prStats[nick] = (prStats[nick] || 0) + 1;
+    });
+
+    // Performance PR con Clic per filtro
+    const containerPR = document.getElementById('classifica-pr-container');
+    containerPR.innerHTML = Object.entries(prStats)
+      .sort((a,b) => b[1] - a[1])
+      .map(([nick, count]) => `
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-black bg-opacity-25 rounded border-start border-success border-3" 
+             style="cursor: pointer;" onclick="apriGestione('${nick}')">
+          <span class="small fw-bold">@${nick}</span>
+          <span class="badge bg-success rounded-pill">${count}</span>
+        </div>
+      `).join('') || '<div class="text-center p-4 opacity-50 small">Nessuna prenotazione</div>';
+
+    // Tabella Recenti
+    const tabella = document.getElementById('tabella-live-body');
+    tabella.innerHTML = dati.slice(-10).reverse().map(p => `
+      <tr>
+        <td class="py-2">${p.cliente_nome} ${p.cliente_cognome}</td>
+        <td class="text-success small">@${p.pr_nickname}</td>
+        <td class="text-end">${(p.entrato === true || String(p.entrato) === "true") ? '✅' : '⏳'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="3" class="text-center p-3 opacity-50">Lista vuota</td></tr>';
+  }
+
+  // FUNZIONE CHIAVE: Apre la gestione dettagliata
+  function apriGestione(filtroPR = null) {
+    if (!EVENTO_ID) return;
+    // Salviamo il contesto globalmente per il modulo che sta per caricarsi
+    window.filtroGestioneEvento = EVENTO_ID;
+    window.filtroGestionePR = filtroPR;
+    
+    // Richiama la funzione nel dashboard.html (che gestisce lo switch dei moduli)
+    if (typeof caricaModulo === 'function') {
+      caricaModulo('gestione_prenotazioni');
+    }
+  }
+
+  caricaHome();
+</script>

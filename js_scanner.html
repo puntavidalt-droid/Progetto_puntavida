@@ -1,0 +1,117 @@
+<script>
+let html5QrCode;
+let isScanning = true;
+
+/**
+ * Inizializza l'oggetto scanner.
+ */
+function initScanner() {
+  if (html5QrCode) return;
+  html5QrCode = new Html5Qrcode("reader");
+  startScanner();
+}
+
+/**
+ * Avvia la fotocamera
+ */
+function startScanner() {
+  const config = { 
+    fps: 20, 
+    qrbox: { width: 250, height: 250 },
+    aspectRatio: 1.0 
+  };
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    config,
+    onScanSuccess
+  ).catch(err => {
+    console.error("Errore camera: ", err);
+    document.getElementById('reader').innerHTML = `
+      <div class="p-4 text-danger status-card">
+        <p>⚠️ FOTOCAMERA NON DISPONIBILE</p>
+        <small class="text-white">Controlla i permessi del browser</small>
+      </div>`;
+  });
+}
+
+/**
+ * Gestisce la lettura del QR
+ */
+function onScanSuccess(decodedText) {
+  if (!isScanning) return; 
+  isScanning = false;
+  
+  // Feedback immediato: pausa video e nascondi area scan
+  html5QrCode.pause(); 
+  document.getElementById('reader-container').classList.add('d-none');
+  
+  const loadingBox = document.getElementById('loading-scanner');
+  loadingBox.classList.remove('d-none');
+
+  // Chiamata al server per la convalida (gestisce OK, DOPPIO INGRESSO, ERRATO)
+  google.script.run
+    .withSuccessHandler(showResult)
+    .withFailureHandler(showError)
+    .convalidaIngresso(decodedText, CONFIG.evento, CONFIG.staff);
+}
+
+/**
+ * Mostra l'esito dello scan (VAI o STOP)
+ */
+function showResult(res) {
+  document.getElementById('loading-scanner').classList.add('d-none');
+  const box = document.getElementById('result-box');
+  const resTitle = document.getElementById('res-title');
+  const resName = document.getElementById('res-name');
+  const resInfo = document.getElementById('res-info');
+  
+  box.classList.remove('d-none');
+
+  if (res.success) {
+    // --- CASO: INGRESSO VALIDO ---
+    resTitle.innerText = "VAI! ✅";
+    resTitle.style.color = "#1db954"; // Verde Spotify
+    resName.innerText = res.cliente;
+    resInfo.innerText = res.msg || "INGRESSO AUTORIZZATO";
+    resInfo.classList.replace('text-danger', 'text-white');
+  } else {
+    // --- CASO: ERRORE (GIA' ENTRATO / QR ERRATO / SCADUTO) ---
+    resTitle.innerText = "STOP! ❌";
+    resTitle.style.color = "#ff4444"; // Rosso Errore
+    resName.innerText = res.cliente || "SCONOSCIUTO";
+    
+    // Se il messaggio contiene "GIÀ ENTRATO", lo evidenziamo
+    resInfo.innerHTML = `<span style="color: #ff4444;">${res.msg.toUpperCase()}</span>`;
+    console.warn("Accesso negato:", res.msg);
+  }
+}
+
+/**
+ * Gestione errori di rete o crash server
+ */
+function showError(err) {
+  document.getElementById('loading-scanner').classList.add('d-none');
+  document.getElementById('result-box').classList.remove('d-none');
+  const resTitle = document.getElementById('res-title');
+  
+  resTitle.innerText = "ERRORE SERVER";
+  resTitle.style.color = "#ff4444";
+  document.getElementById('res-info').innerText = "CONNESSIONE PERSA O ERRORE DB";
+  console.error("Errore critico Google Script:", err);
+}
+
+/**
+ * Reset per il prossimo cliente: riaccende la camera
+ */
+function resetScanner() {
+  isScanning = true;
+  document.getElementById('result-box').classList.add('d-none');
+  document.getElementById('reader-container').classList.remove('d-none');
+  
+  // Riprende il video senza ricaricare la pagina
+  if (html5QrCode) {
+    html5QrCode.resume();
+  }
+}
+</script>

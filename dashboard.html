@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+<link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  
+  <?!= include('css_comune'); ?>
+  
+  <style>
+    :root { --sidebar-width: 260px; --accent-color: #1ed760; }
+    body { background-color: #000; color: #fff; min-height: 100vh; display: flex; margin: 0; overflow-x: hidden; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    
+    /* SIDEBAR PC */
+    #sidebar {
+      width: var(--sidebar-width); background: #121212; border-right: 1px solid #333;
+      display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0;
+      transition: transform 0.3s ease; z-index: 1050;
+    }
+    .nav-link {
+      color: #b3b3b3; padding: 12px 20px; margin: 4px 15px; border-radius: 8px;
+      display: flex; align-items: center; text-decoration: none; transition: all 0.2s; cursor: pointer;
+    }
+    .nav-link i { font-size: 1.3rem; margin-right: 15px; }
+    .nav-link:hover { color: #fff; background: #282828; }
+    .nav-link.active { color: var(--accent-color); background: #282828; font-weight: bold; }
+    
+    /* MAIN CONTENT */
+    #main-content { flex-grow: 1; display: flex; flex-direction: column; width: 100%; }
+    #content-area { padding: 25px; max-width: 1400px; margin: 0 auto; width: 100%; }
+    
+    /* MOBILE NAVIGATION (BOTTOM BAR) */
+    .mobile-bottom-nav {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0; 
+      height: 65px; background: #121212; border-top: 1px solid #333;
+      justify-content: space-around; align-items: center; z-index: 2000;
+    }
+    .mobile-nav-item { color: #b3b3b3; text-decoration: none; text-align: center; font-size: 0.6rem; flex: 1; }
+    .mobile-nav-item i { display: block; font-size: 1.5rem; }
+    .mobile-nav-item.active { color: var(--accent-color); }
+
+    /* RESPONSIVE LOGIC */
+    @media (max-width: 992px) {
+      #sidebar { display: none; } /* Nascondiamo la sidebar su mobile */
+      .mobile-bottom-nav { display: flex; }
+      body { padding-bottom: 70px; } /* Spazio per la nav bar */
+      #content-area { padding: 15px; }
+      .mobile-top-bar { display: flex; background: #121212; padding: 10px 20px; border-bottom: 1px solid #333; align-items: center; position: sticky; top:0; z-index: 1000;}
+    }
+    
+    @media (min-width: 993px) {
+      .mobile-top-bar { display: none; }
+    }
+
+    /* DARK THEME FORCED FOR MODULES */
+    #modulo-container .btn-primary, #modulo-container .btn-success {
+      background-color: transparent !important; color: #fff !important;
+      border: 1px solid #444 !important; text-transform: uppercase !important;
+      font-weight: 700 !important; transition: all 0.3s ease !important;
+    }
+    #modulo-container .btn-primary:hover, #modulo-container .btn-success:hover {
+      color: var(--accent-color) !important; border-color: var(--accent-color) !important;
+      background-color: rgba(30, 214, 96, 0.05) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <nav id="sidebar">
+    <div class="p-4 mb-3 text-center">
+      <h5 class="fw-bold text-uppercase text-success mb-0" style="letter-spacing: 2px;">
+        <i class="bi bi-rocket-takeoff-fill me-2"></i> PUNTA VIDA
+      </h5>
+      <div id="user-display" class="small text-muted mt-2 text-uppercase" style="font-size: 0.7rem;"></div>
+    </div>
+    
+   <div class="nav flex-column flex-grow-1">
+      <a class="nav-link active" onclick="cambiaVista('home', this)">
+        <i class="bi bi-speedometer2"></i> Home Live
+      </a>
+      <a class="nav-link" id="nav-prenotazioni" onclick="cambiaVista('gestione_prenotazioni', this)">
+        <i class="bi bi-list-check"></i> Prenotazioni
+      </a>
+      <a class="nav-link" onclick="cambiaVista('eventi', this)">
+        <i class="bi bi-calendar4-event"></i> Eventi
+      </a>
+      <a class="nav-link" onclick="cambiaVista('pr', this)">
+        <i class="bi bi-people"></i> Team PR
+      </a>
+      <a class="nav-link" onclick="cambiaVista('staff', this)">
+        <i class="bi bi-shield-lock"></i> Gestione Staff
+      </a>
+      <a class="nav-link text-warning" onclick="cambiaVista('links', this)">
+        <i class="bi bi-link-45deg"></i> Link Generator
+      </a>
+    </div>
+
+    <div class="mt-auto p-3">
+      <button class="btn btn-outline-danger btn-sm w-100" onclick="logout()">LOGOUT</button>
+    </div>
+  </nav>
+
+  <div id="main-content">
+    <div class="mobile-top-bar">
+       <span class="fw-bold text-success">PUNTA VIDA CONTROL</span>
+    </div>
+
+    <div id="content-area">
+      <div id="modulo-container">
+          <div class="text-center p-5">
+            <div class="spinner-border text-success"></div>
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mobile-bottom-nav">
+    <a href="#" class="mobile-nav-item active" onclick="caricaDaMobile('home', this)">
+      <i class="bi bi-house-door"></i><span>Home</span>
+    </a>
+    <a href="#" class="mobile-nav-item" onclick="caricaDaMobile('staff', this)">
+      <i class="bi bi-person-badge"></i><span>Staff</span>
+    </a>
+    <a href="#" class="mobile-nav-item" onclick="apriScanner()">
+      <i class="bi bi-qr-code-scan"></i><span>Scanner</span>
+    </a>
+    <a href="#" class="mobile-nav-item" onclick="caricaDaMobile('gestione_prenotazioni', this)">
+      <i class="bi bi-people"></i><span>Check-in</span>
+    </a>
+    <a href="#" class="mobile-nav-item" onclick="logout()">
+      <i class="bi bi-box-arrow-left"></i><span>Esci</span>
+    </a>
+  </nav>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    window.utenteLoggato = null;
+    let moduloCorrente = 'home';
+
+    // Security Check
+    (function() {
+      const sessione = localStorage.getItem('sessione_punta_vida');
+      if (!sessione) { logout(); return; }
+      window.utenteLoggato = JSON.parse(sessione);
+      document.getElementById('user-display').innerText = "User: " + window.utenteLoggato.nickname;
+    })();
+
+    function logout() {
+      localStorage.removeItem('sessione_punta_vida');
+      const url = "<?= ScriptApp.getService().getUrl() ?>?page=login";
+      window.location.href = url;
+    }
+
+    // Navigazione Mobile
+    function caricaDaMobile(modulo, el) {
+      document.querySelectorAll('.mobile-nav-item').forEach(i => i.classList.remove('active'));
+      el.classList.add('active');
+      cambiaVista(modulo);
+    }
+
+    function apriScanner() {
+       window.location.href = "<?= ScriptApp.getService().getUrl() ?>?page=scanner";
+    }
+
+    // Caricamento Moduli
+    function cambiaVista(modulo, element) {
+      if (modulo === 'staff' && !window.utenteLoggato.is_admin) return;
+
+      const container = document.getElementById('modulo-container');
+      if (element) {
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        element.classList.add('active');
+      }
+
+      container.innerHTML = '<div class="text-center p-5"><div class="spinner-border text-success"></div></div>';
+
+      google.script.run
+        .withSuccessHandler(html => {
+          container.innerHTML = html;
+          
+          // Esecuzione Script del modulo caricato (Senza duplicazioni)
+          const scripts = container.querySelectorAll("script");
+          scripts.forEach(oldScript => {
+            const newScript = document.createElement("script");
+            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+            newScript.text = oldScript.innerHTML;
+            document.body.appendChild(newScript).parentNode.removeChild(newScript);
+          });
+
+          // Avvio funzioni specifiche
+         // Sostituisci il blocco initMap con questo:
+          setTimeout(() => {
+            const initMap = {
+              'home': 'caricaHome',
+              'eventi': 'caricaEventi',
+              'pr': 'caricaPR',
+              'staff': 'caricaStaff', // <--- RIGA AGGIUNTA
+              'gestione_prenotazioni': 'inizializzaGestione'
+            };
+            if (window[initMap[modulo]]) window[initMap[modulo]]();
+          }, 100);
+        })
+        .getModuloHTML(modulo);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => cambiaVista('home'));
+  </script>
+</body>
+</html>

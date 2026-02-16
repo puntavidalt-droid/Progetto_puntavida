@@ -1,0 +1,247 @@
+<? if (typeof dashboardContext === 'undefined') { ?>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <?!= include('css_comune'); ?>
+  <style>
+    body { background-color: #000; color: #fff; padding: 20px; }
+  </style>
+<? } ?>
+
+<style>
+    .card-staff { 
+      background: #1a1a1a; 
+      border: 1px solid #333; 
+      border-radius: 15px; 
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Evidenziazione per Amministratori */
+    .card-admin { 
+      border-left: 5px solid #ffc107 !important; 
+      background: linear-gradient(145deg, #1a1a1a 0%, #252525 100%);
+    }
+    .card-staff:hover { border-color: #0dcaf0; transform: translateY(-2px); }
+    .phone-link { color: #fff; text-decoration: none; font-weight: bold; transition: color 0.2s; }
+    .phone-link:hover { color: #0dcaf0; text-decoration: underline; }
+    
+    /* Switch personalizzato giallo per admin */
+    .form-check-input:checked.bg-warning { border-color: #ffc107; background-color: #ffc107; }
+</style>
+
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h3 class="fw-bold mb-0 text-uppercase">Team Staff</h3>
+      <p class="text-muted small">Accesso Scanner e Check-in</p>
+    </div>
+    <button class="btn btn-success fw-bold" onclick="apriModaleStaff()">
+      <i class="bi bi-person-plus-fill me-2"></i>AGGIUNGI STAFF
+    </button>
+  </div>
+
+  <div id="lista-staff" class="row g-3">
+    <div class="text-center p-5">
+      <div class="spinner-border text-success"></div>
+      <p class="mt-2 text-muted">Caricamento staff...</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalStaff" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-dark border-secondary text-white">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title fw-bold" id="modalTitolo">Nuovo Staff</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formStaff">
+          <input type="hidden" id="staff_id">
+          
+          <div class="mb-4 p-2 border border-warning rounded bg-black bg-opacity-25">
+            <div class="form-check form-switch d-flex justify-content-between align-items-center">
+              <div>
+                <label class="form-check-label fw-bold text-warning" for="is_admin">RUOLO AMMINISTRATORE</label>
+                <div class="small text-muted">Permette gestione staff e report</div>
+              </div>
+              <input class="form-check-input bg-warning border-warning" type="checkbox" id="is_admin">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small opacity-50 text-uppercase">Nickname (Username Login)</label>
+            <input type="text" class="form-control bg-dark text-white border-secondary" id="nickname" required>
+          </div>
+          
+          <div class="row">
+            <div class="col-6 mb-3">
+                <label class="form-label small opacity-50 text-uppercase">Nome</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" id="nome">
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label small opacity-50 text-uppercase">Cognome</label>
+                <input type="text" class="form-control bg-dark text-white border-secondary" id="cognome">
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-8 mb-3">
+                <label class="form-label small opacity-50 text-uppercase">Email</label>
+                <input type="email" class="form-control bg-dark text-white border-secondary" id="email">
+            </div>
+            <div class="col-4 mb-3">
+                <label class="form-label small opacity-50 text-uppercase text-warning">PIN Accesso</label>
+                <input type="text" class="form-control bg-dark text-white border-warning" id="codice_pin" maxlength="6" placeholder="1234">
+            </div>
+          </div>
+          
+          <div class="mb-3">
+              <label class="form-label small opacity-50 text-uppercase">Cellulare</label>
+              <input type="tel" class="form-control bg-dark text-white border-secondary" id="cellulare">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label small opacity-50 text-uppercase">Stato Account</label>
+            <select class="form-select bg-dark text-white border-secondary" id="attivo">
+              <option value="true">ATTIVO</option>
+              <option value="false">DISATTIVATO</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-secondary">
+        <button type="button" class="btn btn-success w-100 fw-bold py-2" onclick="inviaStaff()">SALVA MEMBRO STAFF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var staffLocali = [];
+  var modalStaffInst = null;
+
+  window.caricaStaff = function() {
+    const modalEl = document.getElementById('modalStaff');
+    if (modalEl && !modalStaffInst) {
+      modalStaffInst = new bootstrap.Modal(modalEl);
+    }
+
+    google.script.run
+      .withSuccessHandler(renderStaff)
+      .withFailureHandler(err => {
+        document.getElementById('lista-staff').innerHTML = '<div class="alert alert-danger">Errore: ' + err.message + '</div>';
+      })
+      .getListaStaff();
+  };
+
+  function renderStaff(lista) {
+    const container = document.getElementById('lista-staff');
+    if (!container) return;
+    container.innerHTML = "";
+    staffLocali = lista || [];
+
+    if (staffLocali.length === 0) {
+      container.innerHTML = '<div class="col-12 text-center p-5 text-muted">Nessun membro dello staff trovato.</div>';
+      return;
+    }
+
+    staffLocali.forEach(s => {
+      const cardCol = document.createElement('div');
+      cardCol.className = "col-md-4 col-lg-3";
+      
+      const isAttivo = s.attivo === true || s.attivo === "true";
+      const isAdmin = s.is_admin === true || s.is_admin === "true";
+      
+      // Badge Admin speciale
+      const badgeAdmin = isAdmin ? 
+        `<span class="badge bg-warning text-dark"><i class="bi bi-shield-fill-check me-1"></i>ADMIN</span>` : 
+        `<span class="badge bg-secondary opacity-50">STAFF</span>`;
+
+      cardCol.innerHTML = `
+        <div class="card card-staff p-3 ${!isAttivo ? 'opacity-50 border-danger' : ''} ${isAdmin ? 'card-admin' : ''}" 
+             style="cursor:pointer" onclick="modificaStaff('${s.id}')">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="fw-bold text-info">@${s.nickname}</span>
+            ${badgeAdmin}
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">${s.nome} ${s.cognome || ''}</h5>
+            <span class="small text-muted">PIN: ${s.codice_pin || '----'}</span>
+          </div>
+          <div class="small mt-3 pt-2 border-top border-secondary border-opacity-25">
+            <div class="mb-1">
+              <i class="bi bi-telephone text-info me-2"></i>
+              <a href="tel:${s.cellulare}" class="phone-link" onclick="event.stopPropagation();">${s.cellulare || '---'}</a>
+            </div>
+            <div class="text-truncate text-muted">
+              <i class="bi bi-envelope me-2"></i>${s.email || '---'}
+            </div>
+          </div>
+        </div>`;
+      container.appendChild(cardCol);
+    });
+  }
+
+  window.apriModaleStaff = function() {
+    document.getElementById('formStaff').reset();
+    document.getElementById('staff_id').value = "";
+    document.getElementById('modalTitolo').innerText = "Nuovo Staff";
+    
+    // FORZATURA DEFAULT: Nuovo staff è sempre is_admin = false
+    document.getElementById('is_admin').checked = false;
+    
+    if (modalStaffInst) modalStaffInst.show();
+  };
+
+  window.modificaStaff = function(id) {
+    const s = staffLocali.find(item => item.id === id);
+    if(!s) return;
+    
+    document.getElementById('staff_id').value = s.id;
+    document.getElementById('nickname').value = s.nickname || "";
+    document.getElementById('nome').value = s.nome || "";
+    document.getElementById('cognome').value = s.cognome || "";
+    document.getElementById('email').value = s.email || "";
+    document.getElementById('cellulare').value = s.cellulare || "";
+    document.getElementById('codice_pin').value = s.codice_pin || "";
+    document.getElementById('attivo').value = s.attivo.toString();
+    
+    // Carica valore is_admin reale dal DB
+    document.getElementById('is_admin').checked = (s.is_admin === true || s.is_admin === "true");
+    
+    document.getElementById('modalTitolo').innerText = "Modifica Staff";
+    if (modalStaffInst) modalStaffInst.show();
+  };
+
+  window.inviaStaff = function() {
+    const payload = {
+      id: document.getElementById('staff_id').value,
+      nickname: document.getElementById('nickname').value.trim(),
+      nome: document.getElementById('nome').value,
+      cognome: document.getElementById('cognome').value,
+      email: document.getElementById('email').value,
+      cellulare: document.getElementById('cellulare').value,
+      codice_pin: document.getElementById('codice_pin').value,
+      attivo: document.getElementById('attivo').value === 'true',
+      is_admin: document.getElementById('is_admin').checked // Legge lo stato dello switch
+    };
+    
+    if(!payload.nickname || !payload.codice_pin) {
+      alert("Nickname e PIN sono obbligatori!");
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(() => { 
+        if (modalStaffInst) modalStaffInst.hide(); 
+        caricaStaff(); 
+      })
+      .withFailureHandler(err => alert("Errore salvataggio: " + err.message))
+      .salvaStaff(payload);
+  };
+
+  if (typeof dashboardContext === 'undefined') {
+    document.addEventListener('DOMContentLoaded', caricaStaff);
+  }
+</script>

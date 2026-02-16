@@ -1,0 +1,103 @@
+<style>
+  /* 1. CONFIGURAZIONE COLORI */
+  :root {
+    --bg-nero: #121212;
+    --bg-antracite: #1e1e1e;
+    --testo-bianco: #ffffff;
+    --testo-grigio: #b3b3b3;   /* Grigio stile Spotify */
+    --verde-fluo: #1db954; 
+    --bordo-discreto: #333333;
+  }
+
+  /* 2. SFONDO E LAYOUT BASE */
+  body { 
+    background-color: var(--bg-nero) !important; 
+    color: var(--testo-bianco) !important;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .card, .card-registrazione, .result-card {
+    background-color: var(--bg-antracite) !important;
+    color: var(--testo-bianco) !important;
+    border: 1px solid var(--bordo-discreto) !important;
+    border-radius: 15px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+    padding: 20px !important;
+  }
+
+  /* 3. INPUT (BIANCHI/PULITI) */
+  .form-control, .form-select {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #ccc !important;
+    border-radius: 8px !important;
+  }
+
+  /* 4. SISTEMA BOTTONI UNIFICATO (Grigio -> Verde) */
+  
+  /* Stato Normale: Grigio e bordo sottile */
+  .btn-primary, .btn-info, .btn-secondary, .btn-dark, .btn-success, .btn-outline-info {
+    background-color: transparent !important;
+    color: var(--testo-grigio) !important;
+    border: 1px solid var(--bordo-discreto) !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: none !important;
+  }
+
+  /* Stato Hover (Passaggio mouse) e Active (Pagina/Tasto selezionato) */
+  .btn-primary:hover, .btn-info:hover, .btn-secondary:hover, 
+  .btn-dark:hover, .btn-success:hover, .btn-outline-info:hover,
+  .btn-primary:active, .active {
+    color: var(--verde-fluo) !important;
+    border-color: var(--verde-fluo) !important;
+    background-color: rgba(29, 185, 84, 0.05) !important; /* Leggerissimo riflesso verde */
+    transform: translateY(-1px) !important;
+  }
+
+  /* Tasti speciali registrazione (scritta bianca semplice) */
+  .btn-registrazione, #btn-invia {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    border: none !important;
+    font-weight: 800;
+    text-align: center;
+    width: 100%;
+  }
+  
+  .btn-registrazione:hover, #btn-invia:hover {
+    color: var(--verde-fluo) !important;
+    transform: scale(1.02);
+  }
+
+  /* 5. TABELLE E UTILITY */
+  .table { color: var(--testo-bianco) !important; border-color: var(--bordo-discreto) !important; }
+  .table-hover tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+  
+  a, .text-primary { 
+    color: var(--verde-fluo) !important; 
+    text-decoration: none !important; 
+  }
+
+  #reader { 
+    width: 100% !important; 
+    border-radius: 12px !important; 
+    border: 2px solid var(--bordo-discreto) !important; 
+    overflow: hidden;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  // Opzionale: Configurazione globale per rendere SweetAlert2 sempre scuro
+  // Così non devi scrivere ogni volta background: '#1e1e1e'
+  const Toast = Swal.mixin({
+    background: '#1e1e1e',
+    color: '#fff',
+    confirmButtonColor: '#1db954',
+    cancelButtonColor: '#333'
+  });
+</script>
