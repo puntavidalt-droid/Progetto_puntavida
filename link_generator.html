@@ -4,6 +4,7 @@
   <base target="_top">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     body { background-color: #000; color: #fff; }
     .card { background-color: #121212; border: 1px solid #333; }
@@ -231,8 +232,32 @@
     }).dbGetArchivioLinks();
   }
 
-  function copyLink() { copyValue(document.getElementById('final-link').innerText); }
-  function copyValue(val) { navigator.clipboard.writeText(val); alert("Copiato!"); }
+  //function copyLink() { copyValue(document.getElementById('final-link').innerText); }
+  //function copyValue(val) { navigator.clipboard.writeText(val); alert("Copiato!"); }
+   function copyLink() {
+    copyValue(document.getElementById('final-link').innerText);
+  }
+
+  function mostraPopupMessaggio(titolo, testo, icona) {
+    Swal.fire({
+      title: titolo,
+      text: testo,
+      icon: icona,
+      background: '#1e1e1e',
+      color: '#fff',
+      confirmButtonColor: '#1db954'
+    });
+  }
+
+  function copyValue(val) {
+    navigator.clipboard.writeText(val)
+      .then(function() {
+        mostraPopupMessaggio('Copiato!', 'Il link è stato copiato negli appunti.', 'success');
+      })
+      .catch(function() {
+        mostraPopupMessaggio('Errore', 'Impossibile copiare il link. Riprova.', 'error');
+      });
+  }
 </script>
 </body>
 </html>
