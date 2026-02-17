@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punta Vida | Accesso</title>
+    
+    <!-- Open Graph Meta Tags per WhatsApp/Social -->
+    <meta property="og:title" content="Punta Vida Official">
+    <meta property="og:description" content="Sistema di prenotazione eventi. Accedi all'area riservata o registrati.">
+    <meta property="og:image" content="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+    <meta property="og:url" content="https://comfy-tartufo-500ca9.netlify.app">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1ed760">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: #1ed760;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            overflow: hidden;
+        }
+        
+        .loader-container {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .loading-text {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(30, 215, 96, 0.1);
+            border-top-color: #1ed760;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .error-container {
+            display: none;
+            background: rgba(220, 53, 69, 0.1);
+            border: 2px solid #dc3545;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            margin: 20px;
+        }
+        
+        .error-container.show {
+            display: block;
+        }
+        
+        .error-title {
+            color: #dc3545;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .error-message {
+            color: #fff;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .retry-button {
+            background: #1ed760;
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .retry-button:hover {
+            background: #1db954;
+            transform: scale(1.05);
+        }
+        
+        .tech-info {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            opacity: 0.6;
+            font-family: monospace;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        /* Effetto particelle background */
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: #1ed760;
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: float 10s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+            }
+            25% {
+                transform: translateY(-100px) translateX(50px);
+            }
+            50% {
+                transform: translateY(-200px) translateX(-50px);
+            }
+            75% {
+                transform: translateY(-100px) translateX(100px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Particelle decorative background -->
+    <script>
+        // Crea particelle animate
+        for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.top = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 10 + 's';
+            document.body.appendChild(particle);
+        }
+    </script>
+
+    <!-- Loader principale -->
+    <div class="loader-container" id="loader">
+        <div class="logo">★ PUNTA VIDA</div>
+        <div class="loading-text">Caricamento in corso...</div>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Container errore (nascosto di default) -->
+    <div class="error-container" id="errorContainer">
+        <div class="error-title">⚠️ Errore di Connessione</div>
+        <div class="error-message" id="errorMessage">
+            Si è verificato un problema durante il caricamento. 
+            Verifica la tua connessione internet e riprova.
+        </div>
+        <button class="retry-button" onclick="window.location.reload()">
+            🔄 Riprova
+        </button>
+        <div class="tech-info" id="techInfo"></div>
+    </div>
+
+    <script>
+        // ========================================
+        // CONFIGURAZIONE
+        // ========================================
+        
+        // URL dello script Google Apps Script
+        // ⚠️ IMPORTANTE: Aggiorna questo URL dopo ogni nuovo deployment di Apps Script
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5L3NcAJJ7_3wm474L4L008mg3FLDBtzPxwHoNq_zdMao-22fnTE5vC8HB4dgrNjtL/exec";
+        
+        // Timeout in millisecondi (10 secondi)
+        const REDIRECT_TIMEOUT = 10000;
+        
+        // ========================================
+        // FUNZIONI UTILITY
+        // ========================================
+        
+        function showError(message, technicalDetails = '') {
+            const loader = document.getElementById('loader');
+            const errorContainer = document.getElementById('errorContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            const techInfo = document.getElementById('techInfo');
+            
+            loader.style.display = 'none';
+            errorContainer.classList.add('show');
+            errorMessage.textContent = message;
+            
+            if (technicalDetails) {
+                techInfo.textContent = 'Dettaglio tecnico: ' + technicalDetails;
+            }
+            
+            // Log per analytics
+            console.error('Redirect error:', message, technicalDetails);
+        }
+        
+        function getCleanUrl() {
+            // Prende tutti i parametri URL dall'indirizzo corrente
+            const currentParams = window.location.search;
+            const currentHash = window.location.hash;
+            
+            return GOOGLE_SCRIPT_URL + currentParams + currentHash;
+        }
+        
+        function logAnalytics(event, data = {}) {
+            // Log eventi per future analytics
+            console.log('[Analytics]', event, {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                referrer: document.referrer,
+                url: window.location.href,
+                ...data
+            });
+            
+            // TODO: Inviare a Google Analytics / Plausible quando configurato
+        }
+        
+        // ========================================
+        // LOGICA DI REINDIRIZZAMENTO
+        // ========================================
+        
+        function performRedirect() {
+            try {
+                const targetUrl = getCleanUrl();
+                
+                // Log del redirect
+                logAnalytics('redirect_attempt', {
+                    from: window.location.href,
+                    to: targetUrl,
+                    params: window.location.search
+                });
+                
+                // Timeout di sicurezza
+                const timeoutId = setTimeout(() => {
+                    showError(
+                        'Il caricamento sta impiegando più tempo del previsto.',
+                        'Timeout dopo ' + (REDIRECT_TIMEOUT / 1000) + ' secondi'
+                    );
+                }, REDIRECT_TIMEOUT);
+                
+                // Esegui redirect
+                window.location.href = targetUrl;
+                
+                // Se il redirect ha successo, questo codice non verrà mai eseguito
+                // ma serve per pulizia se restassimo sulla pagina
+                window.addEventListener('beforeunload', () => {
+                    clearTimeout(timeoutId);
+                });
+                
+            } catch (error) {
+                showError(
+                    'Errore durante il reindirizzamento. Prova a ricaricare la pagina.',
+                    error.message
+                );
+                
+                logAnalytics('redirect_error', {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+        
+        // ========================================
+        // GESTIONE CASI SPECIALI
+        // ========================================
+        
+        function handleSpecialCases() {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Caso 1: Link diretti senza parametri (homepage)
+            if (!params.toString() && !window.location.hash) {
+                // Reindirizza alla registrazione default
+                window.location.href = GOOGLE_SCRIPT_URL + '?page=registrazione';
+                return true;
+            }
+            
+            // Caso 2: Deep linking per app mobile
+            if (params.has('deeplink')) {
+                const deeplink = params.get('deeplink');
+                logAnalytics('deeplink_detected', { deeplink });
+                // Gestisci deep link se necessario
+            }
+            
+            // Caso 3: UTM tracking (marketing)
+            if (params.has('utm_source')) {
+                logAnalytics('utm_tracking', {
+                    source: params.get('utm_source'),
+                    medium: params.get('utm_medium'),
+                    campaign: params.get('utm_campaign')
+                });
+            }
+            
+            return false;
+        }
+        
+        // ========================================
+        // INIZIALIZZAZIONE
+        // ========================================
+        
+        window.addEventListener('load', function() {
+            // Log caricamento pagina
+            logAnalytics('page_load', {
+                params: window.location.search,
+                referrer: document.referrer
+            });
+            
+            // Controlla casi speciali
+            const handled = handleSpecialCases();
+            
+            if (!handled) {
+                // Piccolo delay per permettere all'animazione di mostrarsi
+                setTimeout(performRedirect, 500);
+            }
+        });
+        
+        // ========================================
+        // GESTIONE ERRORI GLOBALI
+        // ========================================
+        
+        window.addEventListener('error', function(event) {
+            logAnalytics('global_error', {
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno
+            });
+        });
+        
+        // Gestione navigazione indietro
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                // Pagina caricata da cache browser
+                logAnalytics('page_cache_load');
+            }
+        });
+        
+        // ========================================
+        // DEBUG MODE (solo in sviluppo)
+        // ========================================
+        
+        // Decommenta per debug locale
+        /*
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('DEBUG MODE ATTIVO');
+            console.log('Target URL:', getCleanUrl());
+            console.log('Parametri:', window.location.search);
+            
+            // In debug, non fare redirect automatico
+            document.getElementById('loader').innerHTML += 
+                '<div style="margin-top: 20px; color: yellow;">DEBUG: Redirect disabilitato</div>' +
+                '<div style="margin-top: 10px;"><a href="' + getCleanUrl() + '" style="color: #1ed760;">Clicca qui per testare</a></div>';
+        }
+        */
+    </script>
+    
+    <!-- 
+        DOCUMENTAZIONE TECNICA
+        ======================
+        
+        Questo file è il punto di ingresso dell'applicazione Punta Vida su Netlify.
+        
+        FLUSSO:
+        1. Utente clicca link WhatsApp → comfy-tartufo-500ca9.netlify.app?page=X&pr=Y
+        2. Netlify carica questo index.html
+        3. JavaScript prende i parametri (?page=X&pr=Y)
+        4. Reindirizza a Google Apps Script mantenendo i parametri
+        5. Apps Script processa e mostra la pagina corretta
+        
+        MANUTENZIONE:
+        - Aggiorna GOOGLE_SCRIPT_URL dopo ogni deploy di Apps Script
+        - Monitora console per errori di redirect
+        - Testa sempre i link generati prima di distribuirli
+        
+        TESTING:
+        - Test registrazione: /index.html?page=registrazione&evento=default&pr=Staff
+        - Test scanner: /index.html?page=scanner&evento=default&staff=luca
+        - Test dashboard: /index.html?page=dashboard
+    -->
+</body>
+</html>
