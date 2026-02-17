@@ -19,7 +19,16 @@
     <meta name="theme-color" content="#1ed760">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+   <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
     
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+    
+    <!-- Meta tags per iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PuntaVida"> 
     <style>
         * {
             margin: 0;
@@ -173,6 +182,7 @@
             particle.style.animationDelay = Math.random() * 10 + 's';
             document.body.appendChild(particle);
         }
+
     </script>
 
     <!-- Loader principale -->
@@ -367,7 +377,14 @@
                 logAnalytics('page_cache_load');
             }
         });
-        
+                // Registra Service Worker per PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('Service Worker registrato'))
+      .catch(err => console.log('Service Worker errore:', err));
+  });
+}
         // ========================================
         // DEBUG MODE (solo in sviluppo)
         // ========================================
