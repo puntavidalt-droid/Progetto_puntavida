@@ -7,7 +7,7 @@
 
     <!-- Open Graph per WhatsApp/Social -->
     <meta property="og:title" content="Punta Vida Official">
-    <meta property="og:description" content="Sistema di prenotazione eventi. Accedi all'area riservata o registrati.">
+    <meta property="og:description" content="Sistema di prenotazione eventi.">
     <meta property="og:image" content="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
     <meta property="og:url" content="https://comfy-tartufo-500ca9.netlify.app">
     <meta property="og:type" content="website">
@@ -15,85 +15,38 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
 
-    <!--
-        ⚠️ MANIFEST e META PWA vengono iniettati via JS SOLO per le pagine admin.
-        Registrazione e Scanner NON mostrano il prompt di installazione.
-    -->
-
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
+            width: 100%; height: 100%;
             background: #000;
-        }
-
-        #splash {
-            position: fixed;
-            inset: 0;
-            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-            transition: opacity 0.5s ease;
-        }
-
-        #splash.fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .logo-text {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: #1ed760;
-            margin-bottom: 20px;
-            animation: pulse 2s ease-in-out infinite;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh;
         }
-
+        .logo-text {
+            font-size: 2.5rem; font-weight: bold; color: #1ed760;
+            margin-bottom: 24px; animation: pulse 2s ease-in-out infinite;
+        }
+        #splash { display: flex; flex-direction: column; align-items: center; text-align: center; }
         .spinner {
-            width: 44px;
-            height: 44px;
-            border: 4px solid rgba(30, 215, 96, 0.15);
-            border-top-color: #1ed760;
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
+            width: 44px; height: 44px;
+            border: 4px solid rgba(30,215,96,0.15); border-top-color: #1ed760;
+            border-radius: 50%; animation: spin 0.9s linear infinite;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50%       { opacity: 0.8; transform: scale(1.04); }
-        }
-
-        #appFrame {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: #000;
+            0%,100% { opacity:1; transform:scale(1); }
+            50%      { opacity:0.8; transform:scale(1.04); }
         }
     </style>
 </head>
 <body>
-
     <div id="splash">
         <div class="logo-text">★ PUNTA VIDA</div>
         <div class="spinner"></div>
     </div>
 
-    <iframe id="appFrame" src="" allowfullscreen></iframe>
-
     <script>
-        // ================================================
-        // CONFIGURAZIONE
-        // ================================================
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5L3NcAJJ7_3wm474L4L008mg3FLDBtzPxwHoNq_zdMao-22fnTE5vC8HB4dgrNjtL/exec";
 
         // ❌ PWA NON ATTIVA per queste pagine (pubbliche)
@@ -104,9 +57,6 @@
             'scanner'        // scanner QR dello staff all'ingresso
         ];
 
-        // ================================================
-        // RILEVAMENTO PAGINA CORRENTE
-        // ================================================
         const params = new URLSearchParams(window.location.search);
         const paginaCorrente = params.get('page') || 'registrazione';
 
@@ -114,91 +64,52 @@
         // (dashboard, home, login, gestione_*, link_generator, e qualsiasi nuova pagina futura)
         const isPaginaAdmin = !PAGINE_PUBBLICHE.includes(paginaCorrente);
 
-        // ================================================
-        // PWA: inietta manifest e meta tag SOLO per admin
-        // ================================================
+        // Inietta manifest e meta PWA SOLO per le pagine admin
         if (isPaginaAdmin) {
-            // Manifest
+            const head = document.head;
             const manifestLink = document.createElement('link');
-            manifestLink.rel  = 'manifest';
-            manifestLink.href = '/manifest.json';
-            document.head.appendChild(manifestLink);
+            manifestLink.rel = 'manifest'; manifestLink.href = '/manifest.json';
+            head.appendChild(manifestLink);
 
-            // Theme color
             const themeColor = document.createElement('meta');
-            themeColor.name    = 'theme-color';
-            themeColor.content = '#000000';
-            document.head.appendChild(themeColor);
+            themeColor.name = 'theme-color'; themeColor.content = '#000000';
+            head.appendChild(themeColor);
 
-            // Apple touch icon
             const appleIcon = document.createElement('link');
-            appleIcon.rel  = 'apple-touch-icon';
+            appleIcon.rel = 'apple-touch-icon';
             appleIcon.href = 'https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png';
-            document.head.appendChild(appleIcon);
+            head.appendChild(appleIcon);
 
-            // Apple PWA capable
-            const appleCap = document.createElement('meta');
-            appleCap.name    = 'apple-mobile-web-app-capable';
-            appleCap.content = 'yes';
-            document.head.appendChild(appleCap);
-
-            // Apple status bar
-            const appleBar = document.createElement('meta');
-            appleBar.name    = 'apple-mobile-web-app-status-bar-style';
-            appleBar.content = 'black-translucent';
-            document.head.appendChild(appleBar);
-
-            // Apple title
-            const appleTitle = document.createElement('meta');
-            appleTitle.name    = 'apple-mobile-web-app-title';
-            appleTitle.content = 'PuntaVida';
-            document.head.appendChild(appleTitle);
+            [
+                ['mobile-web-app-capable', 'yes'],
+                ['apple-mobile-web-app-status-bar-style', 'black-translucent'],
+                ['apple-mobile-web-app-title', 'PuntaVida']
+            ].forEach(([name, content]) => {
+                const m = document.createElement('meta');
+                m.name = name; m.content = content;
+                head.appendChild(m);
+            });
         }
 
-        // ================================================
-        // COSTRUZIONE URL IFRAME
-        // Mantiene tutti i parametri del link originale
-        // ================================================
-        function buildIframeUrl() {
+        function buildTargetUrl() {
             const hash = window.location.hash;
-            if (!params.toString() && !hash) {
-                params.set('page', 'registrazione');
-            }
+            if (!params.toString() && !hash) params.set('page', 'registrazione');
             return GOOGLE_SCRIPT_URL + '?' + params.toString() + hash;
         }
 
-        // ================================================
-        // INIZIALIZZAZIONE
-        // ================================================
         window.addEventListener('load', function () {
-            const frame  = document.getElementById('appFrame');
-            const splash = document.getElementById('splash');
-
-            frame.src = buildIframeUrl();
-
-            // Nascondi splash quando l'iframe è pronto
-            frame.addEventListener('load', function () {
-                splash.classList.add('fade-out');
-                setTimeout(() => splash.remove(), 600);
-            });
-
-            // Timeout sicurezza (8 secondi)
-            setTimeout(() => {
-                const s = document.getElementById('splash');
-                if (s) {
-                    s.classList.add('fade-out');
-                    setTimeout(() => s.remove(), 600);
-                }
-            }, 8000);
-
-            // ✅ Service Worker: solo per pagine admin
-            if (isPaginaAdmin && 'serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js')
+            // Registra SW sul dominio Netlify PRIMA del redirect (solo per admin)
+            const swPromise = (isPaginaAdmin && 'serviceWorker' in navigator)
+                ? navigator.serviceWorker.register('/sw.js')
                     .then(reg => console.log('✅ SW registrato:', reg.scope))
-                    .catch(err => console.warn('⚠️ SW errore:', err));
-            }
+                    .catch(err => console.warn('⚠️ SW errore:', err))
+                : Promise.resolve();
+
+            // Aspetta SW + minimo 800ms splash, poi redirect
+            Promise.all([swPromise, new Promise(r => setTimeout(r, 800))]).then(() => {
+                window.location.href = buildTargetUrl();
+            });
         });
     </script>
-
 </body>
 </html>
