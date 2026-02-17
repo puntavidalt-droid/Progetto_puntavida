@@ -392,7 +392,9 @@ function dbGetArchivioLinks() {
 }
 
 function getAppUrl() {
-  return ScriptApp.getService().getUrl();
+ // return ScriptApp.getService().getUrl();
+   // Inserisci il link che ti ha dato Netlify
+  return "https://comfy-tartufo-500ca9.netlify.app/";
 }
 
 function dbGetPrIdByNickname(nickname) {

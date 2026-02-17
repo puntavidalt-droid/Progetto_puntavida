@@ -183,44 +183,68 @@
     selectDest.innerHTML = lista.map(i => `<option value="${i.id}" data-nick="${i.nickname}">${i.nickname.toUpperCase()}</option>`).join('');
   }
 
-  function generaESalva() {
+ function generaESalva() {
     const evEl = document.getElementById('select-evento');
     const dsEl = document.getElementById('select-destinatario');
     
     const evId = evEl.value;
     const evCod = evEl.options[evEl.selectedIndex].getAttribute('data-codice');
-   const evNome = evEl.options[evEl.selectedIndex].text.trim();
+    const evNome = evEl.options[evEl.selectedIndex].text.trim();
     const dsId = dsEl.value;
     const dsNick = dsEl.options[dsEl.selectedIndex].getAttribute('data-nick');
 
     // Recupero URL dinamico
     google.script.run.withSuccessHandler(function(urlBase) {
       let finalLink = "";
+      
+      // 1. DICHIARIAMO LA VARIABILE QUI FUORI PER RENDERLA VISIBILE OVUNQUE
+      let messaggioWhatsApp = ""; 
+
       if(stato.tipo === 'prenotazione') {
         finalLink = urlBase + "?page=registrazione&evento=" + evCod + "&pr=" + dsNick;
       } else {
         finalLink = urlBase + "?page=scanner&evento=" + evCod + "&staff=" + dsNick;
       }
-      const iconBrand = '★';
-      const iconEvento = '▸';
-      const iconRuolo = '◉';
-      const ruolo = stato.tipo === 'prenotazione' ? 'PR' : 'STAFF';
-      const descrizioneLink = stato.tipo === 'prenotazione'
-        ? 'Link ufficiale di registrazione'
-        : 'Link ufficiale scanner staff';
-       const messaggioWhatsApp = [
-        `${iconBrand} *PuntaVida*`,
-        `${iconEvento} *Evento:* ${evNome}`,
-        `${iconRuolo} *${ruolo}:* ${dsNick.toUpperCase()}`,
-        '',
-        `${descrizioneLink}:`,
-        finalLink
-      ].join('\n');
+
+      if (stato.tipo === 'prenotazione') {
+        const iconBrand = '★';
+        const iconEvento = '▸';
+        const iconRuolo = '◉';
+        // const ruolo = stato.tipo === 'prenotazione' ? 'PR' : 'STAFF'; // Ridondante qui, sappiamo che è PR
+        
+        // 2. RIMOSSO 'const', ORA RIEMPIAMO LA VARIABILE CREATA SOPRA
+        messaggioWhatsApp = [
+          `${iconBrand} *PuntaVida*`,
+          `${iconEvento} *Evento:* ${evNome}`,
+          `${iconRuolo} *PR:* ${dsNick.toUpperCase()}`,
+          '',
+          `Link ufficiale di registrazione:`,
+          finalLink
+        ].join('\n');
+        
+      } else {
+        // --- MESSAGGIO PER LO STAFF ---
+        messaggioWhatsApp = [
+          `ACCESSO SCANNER STAFF 📲`,
+          `Clicca sul link per iniziare il controllo ingressi:`,
+          '',
+          finalLink,
+          '',
+          `*PROMEMORIA RAPIDO:*`,
+          `Consenti l'uso della fotocamera al primo avvio.`,
+          '',
+          `Semaforo VERDE ✅: Il cliente può entrare (appare Nome e Cognome).`,
+          `Semaforo ROSSO ❌: Il cliente è già entrato o il codice non esiste.`,
+          '',
+          `Tasto RESET: Premilo dopo ogni scansione per passare al prossimo.`
+        ].join('\n');
+      }
 
       document.getElementById('final-link').innerText = finalLink;
       document.getElementById('result-area').classList.remove('d-none');
-      //document.getElementById('wa-link').href = "https://wa.me/?text=" + encodeURIComponent(finalLink);
-       document.getElementById('wa-link').href = "https://wa.me/?text=" + encodeURIComponent(messaggioWhatsApp);
+      
+      // 3. ORA QUI 'messaggioWhatsApp' È PIENA IN ENTRAMBI I CASI
+      document.getElementById('wa-link').href = "https://wa.me/?text=" + encodeURIComponent(messaggioWhatsApp);
 
       // Salvataggio DB
       const record = {
@@ -231,7 +255,7 @@
         url_generato: finalLink
       };
       google.script.run.withSuccessHandler(caricaArchivio).dbSaveLink(record);
-    }).getAppUrl(); // Richiede funzione getAppUrl in Database.gs
+    }).getAppUrl(); 
   }
 
   function caricaArchivio() {
