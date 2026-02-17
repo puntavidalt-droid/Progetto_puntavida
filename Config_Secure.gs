@@ -57,3 +57,6 @@ function updateConfigProperty(key, value) {
   props.setProperty(key, value);
   Logger.log('✅ Aggiornato ' + key);
 }
+function updateEmailQueueId() {
+  updateConfigProperty('EMAIL_QUEUE_SHEET_ID', '1l_b_pEEAkCML2qqf3ruEb2kCu9moCOfoAUYbEo9MQYA');
+}

@@ -140,23 +140,37 @@ function salvaPrenotazione(payload) {
       };
     }
 
-    // EMAIL ASINCRONA
+// EMAIL: Invio immediato + coda come backup
     try {
+      // Tentativo di invio immediato
       inviaEmailConQR(payload.email, payload.nome, evento.nome_evento, qrToken);
+      Logger.log('✅ Email inviata immediatamente a: ' + payload.email);
     } catch (emailError) {
-      Logger.log('Errore invio email: ' + emailError.message);
-      // Email fallita ma prenotazione OK
+      // Se invio immediato fallisce, mette in coda per retry automatico
+      Logger.log('⚠️ Invio immediato fallito, uso coda: ' + emailError.message);
+      try {
+        accodaInvioEmail({
+          email: payload.email,
+          nome: payload.nome,
+          nomeEvento: evento.nome_evento,
+          qrToken: qrToken
+        });
+        Logger.log('📧 Email accodata per retry automatico');
+      } catch (queueError) {
+        Logger.log('❌ Anche accodamento fallito: ' + queueError.message);
+        // Prenotazione è comunque salvata, email verrà gestita manualmente
+      }
     }
 
     const executionTime = Date.now() - startTime;
     Logger.log('Prenotazione salvata in ' + executionTime + 'ms');
     
-    return { 
-      success: true, 
-      token: qrToken,
-      message: "Prenotazione confermata! Riceverai l'email con il QR code a breve.",
-      executionTime: executionTime
-    };
+   return { 
+  success: true, 
+  token: qrToken,
+  message: "🔥 Sei dentro! Ti mandiamo l'email con il QR tra 1-2 min. Check anche lo spam! 📱",
+  executionTime: executionTime
+};
 
   } catch (e) {
     Logger.log('Errore generale: ' + e.message);

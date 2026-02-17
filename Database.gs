@@ -392,9 +392,17 @@ function dbGetArchivioLinks() {
 }
 
 function getAppUrl() {
- // return ScriptApp.getService().getUrl();
-   // Inserisci il link che ti ha dato Netlify
-  return "https://comfy-tartufo-500ca9.netlify.app/";
+  const NETLIFY_URL = "https://comfy-tartufo-500ca9.netlify.app";
+  return NETLIFY_URL;
+}
+
+function generateAppLink(page, params = {}) {
+  const baseUrl = getAppUrl();
+  const allParams = { page, ...params };
+  const queryString = Object.keys(allParams)
+    .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(allParams[key]))
+    .join('&');
+  return baseUrl + '/?' + queryString;
 }
 
 function dbGetPrIdByNickname(nickname) {
@@ -494,4 +502,21 @@ function dbGetStaffByLogin(nickname, pin) {
     console.error("Errore dentro dbGetStaffByLogin: " + e.message);
     throw e; 
   }
+}
+function testGenerateAppLink() {
+  Logger.log('=== TEST LINK GENERATION ===');
+  
+  const linkRegistrazione = generateAppLink('registrazione', {
+    evento: 'LOCA2',
+    pr: 'BuenaHola'
+  });
+  Logger.log('Registrazione: ' + linkRegistrazione);
+  
+  const linkScanner = generateAppLink('scanner', {
+    evento: 'LOCA2',
+    staff: 'Nena1'
+  });
+  Logger.log('Scanner: ' + linkScanner);
+  
+  Logger.log('Base URL: ' + getAppUrl());
 }
