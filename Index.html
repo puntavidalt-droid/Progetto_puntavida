@@ -15,17 +15,10 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
 
-    <!-- ✅ PWA: Manifest -->
-    <link rel="manifest" href="/manifest.json">
-
-    <!-- ✅ PWA: Apple / iOS -->
-    <link rel="apple-touch-icon" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PuntaVida">
-
-    <!-- ✅ PWA: Theme color -->
-    <meta name="theme-color" content="#000000">
+    <!--
+        ⚠️ MANIFEST e META PWA vengono iniettati via JS SOLO per le pagine admin.
+        Registrazione e Scanner NON mostrano il prompt di installazione.
+    -->
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -37,7 +30,6 @@
             background: #000;
         }
 
-        /* Splash screen mostrato durante il caricamento */
         #splash {
             position: fixed;
             inset: 0;
@@ -76,10 +68,9 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.04); }
+            50%       { opacity: 0.8; transform: scale(1.04); }
         }
 
-        /* ✅ L'iframe occupa tutto lo schermo — nessun redirect, l'utente resta su Netlify */
         #appFrame {
             position: fixed;
             inset: 0;
@@ -92,75 +83,121 @@
 </head>
 <body>
 
-    <!-- Splash screen animato -->
     <div id="splash">
         <div class="logo-text">★ PUNTA VIDA</div>
         <div class="spinner"></div>
     </div>
 
-    <!-- 
-        ✅ IFRAME: l'app Apps Script gira qui dentro.
-        L'utente resta su comfy-tartufo-500ca9.netlify.app → la PWA funziona!
-    -->
     <iframe id="appFrame" src="" allowfullscreen></iframe>
 
     <script>
-        // ========================================
+        // ================================================
         // CONFIGURAZIONE
-        // ========================================
+        // ================================================
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5L3NcAJJ7_3wm474L4L008mg3FLDBtzPxwHoNq_zdMao-22fnTE5vC8HB4dgrNjtL/exec";
 
-        // ========================================
-        // COSTRUZIONE URL IFRAME
-        // Mantiene tutti i parametri del link originale (page, pr, evento, ecc.)
-        // ========================================
-        function buildIframeUrl() {
-            const params = new URLSearchParams(window.location.search);
-            const hash   = window.location.hash;
+        // ❌ PWA NON ATTIVA per queste pagine (pubbliche)
+        // → Aggiungi qui SOLO le pagine che non devono mostrare il popup installazione
+        // → Tutto il resto avrà la PWA attiva automaticamente, anche le nuove pagine
+        const PAGINE_PUBBLICHE = [
+            'registrazione', // link cliente inviato dal PR
+            'scanner'        // scanner QR dello staff all'ingresso
+        ];
 
-            // Se nessun parametro → vai alla registrazione di default
+        // ================================================
+        // RILEVAMENTO PAGINA CORRENTE
+        // ================================================
+        const params = new URLSearchParams(window.location.search);
+        const paginaCorrente = params.get('page') || 'registrazione';
+
+        // ✅ PWA ATTIVA automaticamente per tutto ciò che non è pubblico
+        // (dashboard, home, login, gestione_*, link_generator, e qualsiasi nuova pagina futura)
+        const isPaginaAdmin = !PAGINE_PUBBLICHE.includes(paginaCorrente);
+
+        // ================================================
+        // PWA: inietta manifest e meta tag SOLO per admin
+        // ================================================
+        if (isPaginaAdmin) {
+            // Manifest
+            const manifestLink = document.createElement('link');
+            manifestLink.rel  = 'manifest';
+            manifestLink.href = '/manifest.json';
+            document.head.appendChild(manifestLink);
+
+            // Theme color
+            const themeColor = document.createElement('meta');
+            themeColor.name    = 'theme-color';
+            themeColor.content = '#000000';
+            document.head.appendChild(themeColor);
+
+            // Apple touch icon
+            const appleIcon = document.createElement('link');
+            appleIcon.rel  = 'apple-touch-icon';
+            appleIcon.href = 'https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png';
+            document.head.appendChild(appleIcon);
+
+            // Apple PWA capable
+            const appleCap = document.createElement('meta');
+            appleCap.name    = 'apple-mobile-web-app-capable';
+            appleCap.content = 'yes';
+            document.head.appendChild(appleCap);
+
+            // Apple status bar
+            const appleBar = document.createElement('meta');
+            appleBar.name    = 'apple-mobile-web-app-status-bar-style';
+            appleBar.content = 'black-translucent';
+            document.head.appendChild(appleBar);
+
+            // Apple title
+            const appleTitle = document.createElement('meta');
+            appleTitle.name    = 'apple-mobile-web-app-title';
+            appleTitle.content = 'PuntaVida';
+            document.head.appendChild(appleTitle);
+        }
+
+        // ================================================
+        // COSTRUZIONE URL IFRAME
+        // Mantiene tutti i parametri del link originale
+        // ================================================
+        function buildIframeUrl() {
+            const hash = window.location.hash;
             if (!params.toString() && !hash) {
                 params.set('page', 'registrazione');
             }
-
             return GOOGLE_SCRIPT_URL + '?' + params.toString() + hash;
         }
 
-        // ========================================
+        // ================================================
         // INIZIALIZZAZIONE
-        // ========================================
+        // ================================================
         window.addEventListener('load', function () {
             const frame  = document.getElementById('appFrame');
             const splash = document.getElementById('splash');
 
-            // Imposta la src dell'iframe con i parametri corretti
             frame.src = buildIframeUrl();
 
-            // Nascondi lo splash quando l'iframe è caricato
+            // Nascondi splash quando l'iframe è pronto
             frame.addEventListener('load', function () {
                 splash.classList.add('fade-out');
                 setTimeout(() => splash.remove(), 600);
             });
 
-            // Timeout di sicurezza: nascondi splash dopo 8s anche se l'iframe tarda
+            // Timeout sicurezza (8 secondi)
             setTimeout(() => {
-                if (document.getElementById('splash')) {
-                    splash.classList.add('fade-out');
-                    setTimeout(() => splash.remove(), 600);
+                const s = document.getElementById('splash');
+                if (s) {
+                    s.classList.add('fade-out');
+                    setTimeout(() => s.remove(), 600);
                 }
             }, 8000);
-        });
 
-        // ========================================
-        // ✅ REGISTRAZIONE SERVICE WORKER (PWA)
-        // ========================================
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
+            // ✅ Service Worker: solo per pagine admin
+            if (isPaginaAdmin && 'serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('✅ Service Worker registrato:', reg.scope))
-                    .catch(err => console.warn('⚠️ Service Worker errore:', err));
-            });
-        }
+                    .then(reg => console.log('✅ SW registrato:', reg.scope))
+                    .catch(err => console.warn('⚠️ SW errore:', err));
+            }
+        });
     </script>
 
 </body>
