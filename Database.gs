@@ -530,7 +530,7 @@ function dbGetArchivioLinks() {
 }
 
 function getAppUrl() {
-  const NETLIFY_URL = "https://comfy-tartufo-500ca9.netlify.app";
+  const NETLIFY_URL = "https://comfy-tartufo-500ca9.netlify.app/";
   return NETLIFY_URL;
 }
 
@@ -577,7 +577,7 @@ function dbGetPrenotazioniLive(eventoId) {
   // ← MODIFICATO: aggiunto filtro &stato=neq.ANNULLATA
   const query = "select=*,pr(nickname)";
   const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + 
-              "&stato=neq.ANNULLATA" +  // Esclude annullate
+
               "&" + query;
   
   const options = {
@@ -601,7 +601,8 @@ function dbGetPrenotazioniLive(eventoId) {
       qr_token: p.qr_token,
       evento_id: p.evento_id,
       pr_nickname: (p.pr && p.pr.nickname) ? p.pr.nickname : "Generico",
-      entrato: p.entrato === true || String(p.entrato) === "true"
+      entrato: p.entrato === true || String(p.entrato) === "true",
+      stato: p.stato || 'ATTIVA'  // ← AGGIUNGI QUESTA RIGA
     }));
   } catch (e) {
     console.error("Errore dbGetPrenotazioniLive: " + e.message);
@@ -659,4 +660,53 @@ function testGenerateAppLink() {
   Logger.log('Scanner: ' + linkScanner);
   
   Logger.log('Base URL: ' + getAppUrl());
+
+}
+/**
+ * DEBUG: Verifica cancel_token nel database
+ * Esegui questo su Apps Script per vedere i dati
+ */
+function debugVerificaCancelToken() {
+  const email = "test-ann-01@fake.com"; // La tua email di test
+  const eventoId = dbGetEventoIdByCodice("LOCA2"); // Il tuo evento
+  
+  const prenotazione = dbGetPrenotazionePerEmailEvento(email, eventoId);
+  
+  if (prenotazione) {
+    Logger.log("=== PRENOTAZIONE TROVATA ===");
+    Logger.log("ID: " + prenotazione.id);
+    Logger.log("Email: " + prenotazione.cliente_email);
+    Logger.log("QR Token: " + prenotazione.qr_token);
+    Logger.log("Cancel Token: " + prenotazione.cancel_token); // ← Questo deve esserci!
+    Logger.log("Stato: " + prenotazione.stato);
+    Logger.log("============================");
+    
+    if (!prenotazione.cancel_token) {
+      Logger.log("⚠️ PROBLEMA: cancel_token è NULL!");
+      Logger.log("Soluzione: Esegui UPDATE su Supabase");
+    } else {
+      const linkAnnulla = getAppUrl() + "?page=annulla&token=" + prenotazione.cancel_token;
+      Logger.log("✅ Link annullamento corretto:");
+      Logger.log(linkAnnulla);
+    }
+  } else {
+    Logger.log("❌ Prenotazione non trovata");
+  }
+}
+function debugStatoPrenotazione() {
+  const email = "test-ann-01@fake.com";
+  const eventoId = dbGetEventoIdByCodice("LOCA2");
+  
+  const prenotazione = dbGetPrenotazionePerEmailEvento(email, eventoId);
+  
+  if (prenotazione) {
+    Logger.log("=== STATO PRENOTAZIONE ===");
+    Logger.log("Email: " + prenotazione.cliente_email);
+    Logger.log("Stato: " + prenotazione.stato);
+    Logger.log("Annullata il: " + prenotazione.annullata_il);
+    Logger.log("Annullata da: " + prenotazione.annullata_da);
+    Logger.log("========================");
+  } else {
+    Logger.log("Prenotazione non trovata");
+  }
 }
