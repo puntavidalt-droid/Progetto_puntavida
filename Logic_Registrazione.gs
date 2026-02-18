@@ -4,8 +4,37 @@
  */
 
 function renderRegistrazione(e) {
-  const codiceEvento = e.parameter.evento || "default";
+  let codiceEvento = e.parameter.evento;
   const nicknamePR = e.parameter.pr || "Staff";
+  
+  // Se non c'è parametro evento, usa il prossimo evento disponibile
+  if (!codiceEvento) {
+    const eventi = dbGetAllEventi();
+    
+    if (eventi.length === 0) {
+      return HtmlService.createHtmlOutput(
+        '<div style="padding:50px;text-align:center;font-family:sans-serif;">' +
+        '<h2>⚠️ Nessun Evento Disponibile</h2>' +
+        '<p>Al momento non ci sono eventi aperti.</p>' +
+        '<p>Contatta l\'organizzatore per maggiori informazioni.</p>' +
+        '</div>'
+      ).setTitle("Nessun Evento");
+    }
+    
+    // Trova il prossimo evento futuro, oppure il più recente
+    const oraAttuale = new Date();
+    const eventiOrdinati = eventi.sort((a, b) => 
+      new Date(a.data_evento) - new Date(b.data_evento)
+    );
+    
+    const prossimoEvento = eventiOrdinati.find(ev => 
+      new Date(ev.data_evento) >= oraAttuale
+    );
+    
+    codiceEvento = prossimoEvento 
+      ? prossimoEvento.codice_evento 
+      : eventiOrdinati[eventiOrdinati.length - 1].codice_evento;
+  }
   
   const evento = dbGetEventoInfo(codiceEvento);
   if (!evento) {
