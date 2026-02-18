@@ -1,77 +1,137 @@
 /**
- * UTILITY_MAIL.GS
- * Invia l'email di conferma con il QR Code e gestisce l'invio dei report CSV.
+ * ================================================================
+ * MODIFICA COMPLETA: Utility_mail.gs
+ * Sostituisci l'intera funzione inviaEmailConQR con questa versione
+ * ================================================================
  */
 
-/**
- * 1. Invia l'email di conferma originale (Tua funzione esistente)
- */
-function inviaEmailConQR(emailDestinatario, nomeCliente, nomeEvento, qrToken) {
-  // Utilizziamo l'API per generare l'immagine del QR
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrToken}`;
-  
-  const htmlBody = `
-    <div style="font-family: Arial, sans-serif; text-align: center; border: 1px solid #ddd; padding: 20px; border-radius: 10px; max-width: 500px; margin: auto;">
-      <h2 style="color: #121212;">Ciao ${nomeCliente}!</h2>
-      <p style="font-size: 16px;">La tua prenotazione per l'evento <strong>${nomeEvento}</strong> è confermata.</p>
-      <p>Mostra questo codice all'ingresso per accedere:</p>
-      <div style="margin: 20px 0;">
-        <img src="${qrUrl}" alt="QR Code" style="border: 5px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-      </div>
-      <p style="font-size: 12px; color: #666;">Codice identificativo: ${qrToken}</p>
-      <p style="font-size: 11px; color: #999; margin-top: 20px;">Ti aspettiamo!</p>
-    </div>
-  `;
-  
-  MailApp.sendEmail({
-    to: emailDestinatario,
-    subject: `Conferma Prenotazione: ${nomeEvento}`,
-    htmlBody: htmlBody
-  });
-}
-
-/**
- * 2. NUOVA: Reinvia l'email con QR partendo dall'ID prenotazione
- */
-function reinviaEmailQRId(prenotazioneId) {
-  const p = dbGetPrenotazionePerId(prenotazioneId);
-  if (!p) return false;
-  
-  const evento = dbGetEventoInfoById(p.evento_id);
-  if (!evento) return false;
-  
-  inviaEmailConQR(p.cliente_email, p.cliente_nome, evento.nome_evento, p.qr_token);
-  return true;
-}
-
-/**
- * 3. NUOVA: Genera un CSV e lo invia via email (Report Puntavida o PR)
- */
-function inviaEmailListaPrenotati(destinatario, nomeEvento, datiPrenotazioni, nomePR = null) {
-  const titoloReport = nomePR ? `Lista Prenotazioni PR: ${nomePR}` : `Lista Prenotazioni COMPLETA`;
-  
-  // Intestazione del CSV
-  let csvContent = "Data Prenotazione;Nome;Cognome;Email;PR;Check-in;Ora Ingresso\n";
-  
-  // Popolamento righe
-  datiPrenotazioni.forEach(p => {
-    const dataPren = new Date(p.created_at).toLocaleString('it-IT');
-    const checkin = (p.entrato === true || String(p.entrato) === "true") ? "SI" : "NO";
-    const oraIngresso = p.ora_ingresso ? new Date(p.ora_ingresso).toLocaleString('it-IT') : "-";
+function inviaEmailConQR(email, nome, nomeEvento, qrToken, cancelToken) {
+  try {
+    const baseUrl = getAppUrl(); // Usa la funzione già esistente nel progetto
     
-    csvContent += `${dataPren};${p.cliente_nome};${p.cliente_cognome};${p.cliente_email};${p.pr_nickname};${checkin};${oraIngresso}\n`;
-  });
-
-  // Creazione del file allegato
-  const fileName = `Report_${nomeEvento.replace(/\s+/g, '_')}_${nomePR || 'Full'}.csv`;
-  const blob = Utilities.newBlob(csvContent, 'text/csv', fileName);
-
-  MailApp.sendEmail({
-    to: destinatario,
-    subject: `${titoloReport} - ${nomeEvento}`,
-    body: `In allegato il report aggiornato per l'evento: ${nomeEvento}.\n\nTotale record: ${datiPrenotazioni.length}`,
-    attachments: [blob]
-  });
-  
-  return true;
+    const linkQR = baseUrl + '?page=mostra_qr&token=' + qrToken;
+    const linkAnnulla = cancelToken ? 
+      baseUrl + '?page=annulla&token=' + cancelToken : '';
+    
+    const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #000000;">
+          <tr>
+            <td align="center" style="padding: 40px 20px;">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1a1a1a; border-radius: 16px; overflow: hidden;">
+                
+                <!-- Header -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #1ed760 0%, #18b34d 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 28px; font-weight: bold;">
+                      ★ PUNTA VIDA
+                    </h1>
+                  </td>
+                </tr>
+                
+                <!-- Contenuto principale -->
+                <tr>
+                  <td style="padding: 40px 30px; color: #ffffff;">
+                    <h2 style="color: #1ed760; margin: 0 0 20px 0; font-size: 24px;">
+                      🎉 Prenotazione Confermata!
+                    </h2>
+                    
+                    <p style="font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                      Ciao <strong style="color: #1ed760;">${nome}</strong>,
+                    </p>
+                    
+                    <p style="font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                      La tua prenotazione per <strong style="color: #1ed760;">${nomeEvento}</strong> è confermata!
+                    </p>
+                    
+                    <!-- Box QR Code -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0d0d0d; border: 2px solid #1ed760; border-radius: 12px; margin-bottom: 30px;">
+                      <tr>
+                        <td style="padding: 25px; text-align: center;">
+                          <p style="color: #1ed760; font-size: 14px; font-weight: bold; margin: 0 0 15px 0;">
+                            IL TUO QR CODE
+                          </p>
+                          <p style="color: #ffffff; font-size: 20px; font-family: 'Courier New', monospace; margin: 0 0 20px 0; word-break: break-all;">
+                            ${qrToken}
+                          </p>
+                          <a href="${linkQR}" 
+                             style="display: inline-block; 
+                                    background: linear-gradient(135deg, #1ed760 0%, #18b34d 100%); 
+                                    color: #000000; 
+                                    padding: 14px 32px; 
+                                    text-decoration: none; 
+                                    border-radius: 25px; 
+                                    font-weight: bold;
+                                    font-size: 16px;">
+                            📱 Visualizza QR Code
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <p style="font-size: 14px; color: #999999; line-height: 1.6; margin: 0 0 20px 0;">
+                      💡 <strong>Consiglio:</strong> Salva questa email o fai uno screenshot del QR code. 
+                      Ti servirà all'ingresso dell'evento.
+                    </p>
+                  </td>
+                </tr>
+                
+                ${cancelToken ? `
+                <!-- Sezione Annullamento -->
+                <tr>
+                  <td style="padding: 0 30px 30px 30px;">
+                    <div style="border-top: 1px solid #333333; padding-top: 25px;">
+                      <p style="color: #999999; font-size: 13px; margin: 0 0 10px 0;">
+                        <strong>Hai bisogno di annullare?</strong>
+                      </p>
+                      <p style="color: #999999; font-size: 13px; margin: 0 0 15px 0;">
+                        Non ti preoccupare, potrai sempre ri-registrarti successivamente.
+                      </p>
+                      <a href="${linkAnnulla}" 
+                         style="color: #dc3545; 
+                                text-decoration: underline; 
+                                font-size: 13px;">
+                        Clicca qui per annullare la prenotazione →
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+                ` : ''}
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #0d0d0d; padding: 20px 30px; text-align: center; border-top: 1px solid #333333;">
+                    <p style="color: #666666; font-size: 12px; margin: 0;">
+                      Punta Vida Events &copy; ${new Date().getFullYear()}
+                    </p>
+                  </td>
+                </tr>
+                
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+    
+    MailApp.sendEmail({
+      to: email,
+      subject: '🎉 Prenotazione Confermata - ' + nomeEvento,
+      htmlBody: htmlBody
+    });
+    
+    Logger.log('✅ Email inviata a: ' + email);
+    return true;
+    
+  } catch (error) {
+    Logger.log('❌ Errore invio email: ' + error.message);
+    throw error; // Rilancia per gestione upstream
+  }
 }

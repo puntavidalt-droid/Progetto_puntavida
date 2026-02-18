@@ -132,15 +132,128 @@ function dbGetPrenotazionePerId(id) {
   return data.length > 0 ? data[0] : null;
 }
 
-/** * NUOVA: Elimina una prenotazione (Annullamento) */
+ /* Annulla prenotazione LOGICAMENTE (non cancella dal database)
+ */
 function dbDeletePrenotazione(id) {
-  const options = {
-    method: "delete",
-    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
-  };
-  const url = SB_URL + "/rest/v1/prenotazioni?id=eq." + id;
-  const res = UrlFetchApp.fetch(url, options);
-  return res.getResponseCode() === 204 || res.getResponseCode() === 200;
+  Logger.log('⚠️ dbDeletePrenotazione deprecata, uso annullamento logico');
+  return dbAnnullaPrenotazione(id, 'ADMIN');
+}
+/**
+ * NUOVA FUNZIONE - Annulla prenotazione logicamente
+ * Aggiungi DOPO dbDeletePrenotazione
+ */
+function dbAnnullaPrenotazione(id, origine = 'ADMIN') {
+  try {
+    const url = SB_URL + '/rest/v1/prenotazioni?id=eq.' + id;
+    
+    const options = {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY
+      },
+      payload: JSON.stringify({
+        stato: 'ANNULLATA',
+        annullata_il: new Date().toISOString(),
+        annullata_da: origine
+      })
+    };
+    
+    const res = UrlFetchApp.fetch(url, options);
+    return res.getResponseCode() === 204 || res.getResponseCode() === 200;
+    
+  } catch (e) {
+    Logger.log('Errore dbAnnullaPrenotazione: ' + e.message);
+    return false;
+  }
+}
+
+/**
+ * NUOVA FUNZIONE - Riattiva prenotazione annullata
+ * Aggiungi DOPO dbAnnullaPrenotazione
+ */
+function dbRiattivaPrenotazione(id, nuovoQrToken) {
+  try {
+    const url = SB_URL + '/rest/v1/prenotazioni?id=eq.' + id;
+    
+    const options = {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY
+      },
+      payload: JSON.stringify({
+        stato: 'ATTIVA',
+        qr_token: nuovoQrToken,
+        riattivata_il: new Date().toISOString(),
+        annullata_il: null,
+        annullata_da: null
+      })
+    };
+    
+    const res = UrlFetchApp.fetch(url, options);
+    return res.getResponseCode() === 204 || res.getResponseCode() === 200;
+    
+  } catch (e) {
+    Logger.log('Errore dbRiattivaPrenotazione: ' + e.message);
+    return false;
+  }
+}
+
+/**
+ * NUOVA FUNZIONE - Recupera prenotazione per email e evento
+ * Aggiungi DOPO dbRiattivaPrenotazione
+ */
+function dbGetPrenotazionePerEmailEvento(email, eventoId) {
+  try {
+    const url = SB_URL + '/rest/v1/prenotazioni?cliente_email=eq.' + 
+                encodeURIComponent(email) + 
+                '&evento_id=eq.' + eventoId + 
+                '&select=*';
+    
+    const res = UrlFetchApp.fetch(url, {
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY
+      }
+    });
+    
+    const data = JSON.parse(res.getContentText());
+    return data.length > 0 ? data[0] : null;
+    
+  } catch (e) {
+    Logger.log('Errore dbGetPrenotazionePerEmailEvento: ' + e.message);
+    return null;
+  }
+}
+
+/**
+ * NUOVA FUNZIONE - Recupera prenotazione da cancel token
+ * Aggiungi DOPO dbGetPrenotazionePerEmailEvento
+ */
+function dbGetPrenotazioneDaCancelToken(cancelToken) {
+  if (!cancelToken) return null;
+  
+  try {
+    const url = SB_URL + '/rest/v1/prenotazioni?cancel_token=eq.' + 
+                encodeURIComponent(cancelToken) + '&select=*';
+    
+    const res = UrlFetchApp.fetch(url, {
+      headers: { 
+        "apikey": SB_KEY, 
+        "Authorization": "Bearer " + SB_KEY 
+      }
+    });
+    
+    const data = JSON.parse(res.getContentText());
+    return data.length > 0 ? data[0] : null;
+    
+  } catch (e) {
+    Logger.log('Errore dbGetPrenotazioneDaCancelToken: ' + e.message);
+    return null;
+  }
 }
 
 /** * 8. Aggiorna il record segnando l'ingresso effettuato */
@@ -211,21 +324,39 @@ function dbCheckPrenotazioniPerId(eventoIdUUID) {
   return data.length > 0;
 }
 
+/**
+ * MODIFICA FUNZIONE ESISTENTE - dbGetConteggioPrenotazioni
+ * Trova questa funzione (circa riga 215) e SOSTITUISCI con questa versione
+ * che conta SOLO le prenotazioni ATTIVE (esclude annullate)
+ */
 function dbGetConteggioPrenotazioni(eventoId) {
-  const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + "&select=id";
-  const res = UrlFetchApp.fetch(url, { 
-    headers: { 
-      "apikey": SB_KEY, 
+  const url = SB_URL + 
+              '/rest/v1/prenotazioni?evento_id=eq.' + eventoId + 
+              '&stato=eq.ATTIVA' +  // ← MODIFICATO: conta solo ATTIVE
+              '&select=id';
+  
+  const res = UrlFetchApp.fetch(url, {
+    headers: {
+      "apikey": SB_KEY,
       "Authorization": "Bearer " + SB_KEY,
       "Prefer": "count=exact"
     }
   });
-  return JSON.parse(res.getContentText()).length; 
+  
+  return JSON.parse(res.getContentText()).length;
 }
 
+/**
+ * MODIFICA FUNZIONE ESISTENTE - dbVerificaEmailEsistente
+ * Trova questa funzione (circa riga 235) e SOSTITUISCI
+ * Deve verificare solo tra le prenotazioni ATTIVE
+ */
 function dbVerificaEmailEsistente(email, eventoId) {
   const emailSicura = encodeURIComponent(email.trim());
-  const url = SB_URL + "/rest/v1/prenotazioni?cliente_email=eq." + emailSicura + "&evento_id=eq." + eventoId + "&select=id";
+  const url = SB_URL + '/rest/v1/prenotazioni?cliente_email=eq.' + emailSicura + 
+              '&evento_id=eq.' + eventoId + 
+              '&stato=eq.ATTIVA' +  // ← MODIFICATO: verifica solo ATTIVE
+              '&select=id';
   const res = UrlFetchApp.fetch(url, { 
     headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
   });
@@ -249,8 +380,15 @@ function dbGetLogoUrl() {
   return `https://${PROJECT_ID}.supabase.co/storage/v1/object/public/${BUCKET}/${FILE_NAME}`;
 }
 
+/**
+ * MODIFICA FUNZIONE ESISTENTE - dbGetConteggioCheckin
+ * Trova questa funzione (circa riga 281) e SOSTITUISCI con questa versione
+ */
 function dbGetConteggioCheckin(eventoId) {
-  const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + "&entrato=eq.true&select=id";
+  const url = SB_URL + '/rest/v1/prenotazioni?evento_id=eq.' + eventoId + 
+              '&entrato=eq.true' +
+              '&stato=eq.ATTIVA' +  // ← MODIFICATO: conta solo ATTIVE
+              '&select=id';
   const res = UrlFetchApp.fetch(url, { 
     headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
   });
@@ -430,15 +568,17 @@ function dbGetEventoIdByCodice(codice) {
 }
 
 /**
- * Recupera le prenotazioni per la Home Live (Dashboard)
- * AGGIORNATA: Include ID, Email, Cognome e Data Creazione per la gestione avanzata
+ * MODIFICA FUNZIONE ESISTENTE - dbGetPrenotazioniLive
+ * Trova questa funzione (circa riga 470) e SOSTITUISCI completamente
  */
 function dbGetPrenotazioniLive(eventoId) {
   if (!eventoId) return [];
   
-  // Query estesa per avere tutti i dati necessari alla gestione
+  // ← MODIFICATO: aggiunto filtro &stato=neq.ANNULLATA
   const query = "select=*,pr(nickname)";
-  const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + "&" + query;
+  const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + 
+              "&stato=neq.ANNULLATA" +  // Esclude annullate
+              "&" + query;
   
   const options = {
     "method": "get",

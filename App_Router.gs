@@ -13,7 +13,11 @@ function doGet(e) {
     if (page === 'registrazione' || !page) {
       return renderRegistrazione(e);
     }
-
+        // Pagina Annullamento Prenotazione (dal link email)
+    if (page === 'annulla') {
+      return renderAnnullamento(e);
+    }
+    
     if (page === 'login') {
       return createPageOutput('login', "Punta Vida | Login Staff");
     }

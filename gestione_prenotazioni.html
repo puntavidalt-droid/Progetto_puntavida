@@ -63,6 +63,7 @@
 <style>
   /* Personalizzazione righe */
   .riga-entrato { border-left: 4px solid #1db954 !important; background-color: rgba(29, 185, 84, 0.05) !important; }
+  .riga-annullata { border-left: 4px solid #dc3545 !important; background-color: rgba(220, 53, 69, 0.03) !important; opacity: 0.6; }
   
   /* Select e Input */
   .form-select { background-color: #000 !important; color: #fff !important; border: 1px solid #333 !important; }
@@ -92,6 +93,31 @@
   .btn-outline-warning:hover { background: #ffc107 !important; color: #000 !important; }
   .btn-outline-danger { color: #dc3545 !important; border-color: #dc3545 !important; }
   .btn-outline-danger:hover { background: #dc3545 !important; color: #fff !important; }
+
+  /* Badge personalizzati */
+  .badge { 
+    padding: 5px 12px; 
+    border-radius: 12px; 
+    font-size: 11px; 
+    font-weight: 600; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px; 
+  }
+  .badge-success-custom { 
+    background: rgba(29, 185, 84, 0.2); 
+    color: #1db954; 
+    border: 1px solid #1db954; 
+  }
+  .badge-danger-custom { 
+    background: rgba(220, 53, 69, 0.2); 
+    color: #dc3545; 
+    border: 1px solid #dc3545; 
+  }
+  .badge-warning-custom { 
+    background: rgba(255, 193, 7, 0.1); 
+    color: #ffc107; 
+    border: 1px solid rgba(255, 193, 7, 0.3); 
+  }
 </style>
 
 <script>
@@ -147,31 +173,57 @@
 
     corpo.innerHTML = filtrati.map(p => {
       const entrato = (p.entrato === true || String(p.entrato) === "true");
+      const annullata = (p.stato === 'ANNULLATA');
       
+      // Determina badge stato
+      let badgeStato = '';
+      if (annullata) {
+        badgeStato = '<span class="badge badge-danger-custom">✗ ANNULLATA</span>';
+      } else if (entrato) {
+        badgeStato = '<span class="badge badge-success-custom">✓ ENTRATO</span>';
+      } else {
+        badgeStato = '<span class="badge badge-warning-custom">⏳ ATTESA</span>';
+      }
+      
+      // Bottone Check-in
       let htmlAzioneCheckIn = "";
-      if (entrato) {
+      if (annullata) {
+        // Prenotazione annullata → nessun check-in possibile
+        htmlAzioneCheckIn = `<button class="btn btn-sm btn-dark disabled" title="Prenotazione annullata"><i class="bi bi-x-circle opacity-25"></i></button>`;
+      } else if (entrato) {
+        // Già entrato
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-success disabled" style="background:#1db954 !important; border:none;"><i class="bi bi-check-lg text-black"></i></button>`;
       } else if (CHECK_IN_APERTO_SERVER) {
+        // Check-in disponibile
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-outline-success" onclick="eseguiCheckIn('${p.id}')" title="Check-in Manuale"><i class="bi bi-person-check"></i></button>`;
       } else {
+        // Check-in non ancora aperto
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-dark disabled" title="Check-in non ancora aperto"><i class="bi bi-lock-fill opacity-25"></i></button>`;
       }
 
+      // Bottone Reinvia QR (disabilitato se annullata)
+      const btnReinvia = annullata 
+        ? `<button class="btn btn-sm btn-dark disabled ms-1" title="Non disponibile per prenotazioni annullate"><i class="bi bi-envelope opacity-25"></i></button>`
+        : `<button class="btn btn-sm btn-outline-warning ms-1" onclick="reinviaQR('${p.id}')" title="Reinvia QR Code"><i class="bi bi-envelope"></i></button>`;
+
+      // Bottone Annulla (cambia testo se già annullata)
+      const btnAnnulla = annullata
+        ? `<button class="btn btn-sm btn-dark disabled ms-1" title="Già annullata"><i class="bi bi-trash opacity-25"></i></button>`
+        : `<button class="btn btn-sm btn-outline-danger ms-1" onclick="annullaPrenotazione('${p.id}')" title="Annulla Prenotazione"><i class="bi bi-trash"></i></button>`;
+
       return `
-        <tr class="${entrato ? 'riga-entrato' : ''}">
+        <tr class="${annullata ? 'riga-annullata' : (entrato ? 'riga-entrato' : '')}">
           <td>
-            <div class="fw-bold">${p.cliente_nome} ${p.cliente_cognome}</div>
+            <div class="fw-bold">${p.cliente_nome} ${p.cliente_cognome || ''}</div>
             <div class="small opacity-50">${p.cliente_email || ''}</div>
           </td>
           <td class="text-success small fw-bold">@${p.pr_nickname}</td>
-          <td class="text-center">
-             ${entrato ? '<span class="badge bg-success text-black">ENTRATO</span>' : '<span class="badge border border-secondary opacity-50">ATTESA</span>'}
-          </td>
+          <td class="text-center">${badgeStato}</td>
           <td class="text-end px-3">
             <div class="btn-group">
               ${htmlAzioneCheckIn}
-              <button class="btn btn-sm btn-outline-warning ms-1" onclick="reinviaQR('${p.id}')"><i class="bi bi-envelope"></i></button>
-              <button class="btn btn-sm btn-outline-danger ms-1" onclick="annullaPrenotazione('${p.id}')"><i class="bi bi-trash"></i></button>
+              ${btnReinvia}
+              ${btnAnnulla}
             </div>
           </td>
         </tr>
@@ -255,22 +307,83 @@
 
   function annullaPrenotazione(id) {
     Swal.fire({
-      title: 'Eliminare?',
-      text: "L'azione è definitiva",
+      title: 'Annullare Prenotazione?',
+      html: `
+        <p style="font-size: 14px; color: #999; margin-top: 10px; line-height: 1.6;">
+          La prenotazione sarà annullata (non eliminata dal database).
+          <br><br>
+          Il cliente potrà ri-registrarsi successivamente se lo desidera.
+        </p>
+      `,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc3545',
-      confirmButtonText: 'ELIMINA',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sì, Annulla',
+      cancelButtonText: 'No, Torna Indietro',
       background: '#1e1e1e',
-      color: '#fff'
+      color: '#fff',
+      customClass: {
+        popup: 'swal-dark',
+        title: 'swal-title',
+        htmlContainer: 'swal-text'
+      }
     }).then((result) => {
       if (result.isConfirmed) {
-        google.script.run.withSuccessHandler(r => {
-          if(r) {
-            Swal.fire({ title: 'Eliminato', icon: 'success', background: '#1e1e1e', color: '#fff', timer: 1000, showConfirmButton: false });
-            caricaDatiGestione();
-          }
-        }).azioneAnnullaPrenotazione(id);
+        // Mostra spinner durante operazione
+        Swal.fire({
+          title: 'Annullamento in corso...',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+          background: '#1e1e1e',
+          color: '#fff'
+        });
+        
+        google.script.run
+          .withSuccessHandler(function(success) {
+            if (success) {
+              Swal.fire({ 
+                title: 'Prenotazione Annullata',
+                html: `
+                  <p style="color: #999; font-size: 14px; line-height: 1.6;">
+                    La prenotazione è stata annullata correttamente.
+                    <br><br>
+                    Il cliente potrà ri-registrarsi in futuro.
+                  </p>
+                `,
+                icon: 'success', 
+                background: '#1e1e1e', 
+                color: '#fff', 
+                timer: 2500,
+                timerProgressBar: true,
+                showConfirmButton: false 
+              });
+              // Ricarica dati dopo 2 secondi
+              setTimeout(() => caricaDatiGestione(), 2000);
+            } else {
+              Swal.fire({
+                title: 'Errore',
+                text: 'Impossibile annullare la prenotazione. Riprova.',
+                icon: 'error',
+                background: '#1e1e1e',
+                color: '#fff'
+              });
+            }
+          })
+          .withFailureHandler(function(error) {
+            Swal.fire({
+              title: 'Errore di Sistema',
+              text: 'Si è verificato un errore. Riprova più tardi.',
+              icon: 'error',
+              background: '#1e1e1e',
+              color: '#fff'
+            });
+            console.error('Errore annullamento:', error);
+          })
+          .azioneAnnullaPrenotazione(id);
       }
     });
   }
