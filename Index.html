@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Punta Vida</title>
+
+    <!-- Open Graph per WhatsApp/Social -->
+    <meta property="og:title" content="Punta Vida Official">
+    <meta property="og:description" content="Sistema di prenotazione eventi.">
+    <meta property="og:image" content="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+    <meta property="og:url" content="https://comfy-tartufo-500ca9.netlify.app">
+    <meta property="og:type" content="website">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh;
+        }
+        .logo-text {
+            font-size: 2.5rem; font-weight: bold; color: #1ed760;
+            margin-bottom: 24px; animation: pulse 2s ease-in-out infinite;
+        }
+        #splash { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .spinner {
+            width: 44px; height: 44px;
+            border: 4px solid rgba(30,215,96,0.15); border-top-color: #1ed760;
+            border-radius: 50%; animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse {
+            0%,100% { opacity:1; transform:scale(1); }
+            50%      { opacity:0.8; transform:scale(1.04); }
+        }
+    </style>
+</head>
+<body>
+    <div id="splash">
+        <div class="logo-text">★ PUNTA VIDA</div>
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5L3NcAJJ7_3wm474L4L008mg3FLDBtzPxwHoNq_zdMao-22fnTE5vC8HB4dgrNjtL/exec";
+
+        // ❌ PWA NON ATTIVA per queste pagine (pubbliche)
+        // → Aggiungi qui SOLO le pagine che non devono mostrare il popup installazione
+        // → Tutto il resto avrà la PWA attiva automaticamente, anche le nuove pagine
+        const PAGINE_PUBBLICHE = [
+            'registrazione', // link cliente inviato dal PR
+            'scanner'        // scanner QR dello staff all'ingresso
+        ];
+
+        const params = new URLSearchParams(window.location.search);
+        const paginaCorrente = params.get('page') || 'registrazione';
+
+        // ✅ PWA ATTIVA automaticamente per tutto ciò che non è pubblico
+        // (dashboard, home, login, gestione_*, link_generator, e qualsiasi nuova pagina futura)
+        const isPaginaAdmin = !PAGINE_PUBBLICHE.includes(paginaCorrente);
+
+        // Inietta manifest e meta PWA SOLO per le pagine admin
+        if (isPaginaAdmin) {
+            const head = document.head;
+            const manifestLink = document.createElement('link');
+            manifestLink.rel = 'manifest'; manifestLink.href = '/manifest.json';
+            head.appendChild(manifestLink);
+
+            const themeColor = document.createElement('meta');
+            themeColor.name = 'theme-color'; themeColor.content = '#000000';
+            head.appendChild(themeColor);
+
+            const appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            appleIcon.href = 'https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png';
+            head.appendChild(appleIcon);
+
+            [
+                ['mobile-web-app-capable', 'yes'],
+                ['apple-mobile-web-app-status-bar-style', 'black-translucent'],
+                ['apple-mobile-web-app-title', 'PuntaVida']
+            ].forEach(([name, content]) => {
+                const m = document.createElement('meta');
+                m.name = name; m.content = content;
+                head.appendChild(m);
+            });
+        }
+
+        function buildTargetUrl() {
+            const hash = window.location.hash;
+            if (!params.toString() && !hash) params.set('page', 'registrazione');
+            return GOOGLE_SCRIPT_URL + '?' + params.toString() + hash;
+        }
+
+        window.addEventListener('load', function () {
+            // Registra SW sul dominio Netlify PRIMA del redirect (solo per admin)
+            const swPromise = (isPaginaAdmin && 'serviceWorker' in navigator)
+                ? navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('✅ SW registrato:', reg.scope))
+                    .catch(err => console.warn('⚠️ SW errore:', err))
+                : Promise.resolve();
+
+            // Aspetta SW + minimo 800ms splash, poi redirect
+            Promise.all([swPromise, new Promise(r => setTimeout(r, 800))]).then(() => {
+                window.location.href = buildTargetUrl();
+            });
+        });
+    </script>
+</body>
+</html>
