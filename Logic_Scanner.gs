@@ -103,3 +103,72 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
     return { success: false, msg: "ERRORE SERVER" };
   }
 }
+/**
+ * ================================================================
+ * DEBUG: Verifica orari check-in
+ * Aggiungi questa funzione in fondo a Logic_Scanner.gs
+ * ================================================================
+ */
+
+function debugOrariCheckIn() {
+  const codiceEvento = "LOCA2"; // Il tuo evento
+  
+  Logger.log("=== DEBUG ORARI CHECK-IN ===");
+  
+  const evento = dbGetEventoInfo(codiceEvento);
+  
+  if (!evento) {
+    Logger.log("❌ Evento non trovato");
+    return;
+  }
+  
+  Logger.log("Evento: " + evento.nome_evento);
+  Logger.log("");
+  
+  const oraAttuale = new Date();
+  Logger.log("⏰ ORA ATTUALE (server):");
+  Logger.log("  - Data/ora: " + oraAttuale.toISOString());
+  Logger.log("  - Locale IT: " + oraAttuale.toLocaleString('it-IT'));
+  Logger.log("");
+  
+  Logger.log("📅 INIZIO CHECK-IN (database):");
+  Logger.log("  - Valore raw: " + evento.inizio_checkin);
+  if (evento.inizio_checkin) {
+    const inizio = new Date(evento.inizio_checkin);
+    Logger.log("  - Data/ora: " + inizio.toISOString());
+    Logger.log("  - Locale IT: " + inizio.toLocaleString('it-IT'));
+    Logger.log("");
+    
+    const diff = oraAttuale - inizio;
+    const diffMinuti = Math.floor(diff / 60000);
+    
+    Logger.log("⏱️ DIFFERENZA:");
+    Logger.log("  - Millisecondi: " + diff);
+    Logger.log("  - Minuti: " + diffMinuti);
+    Logger.log("");
+    
+    if (oraAttuale < inizio) {
+      Logger.log("❌ TROPPO PRESTO!");
+      Logger.log("   Il check-in apre tra " + Math.abs(diffMinuti) + " minuti");
+    } else {
+      Logger.log("✅ CHECK-IN APERTO!");
+      Logger.log("   Aperto da " + diffMinuti + " minuti");
+    }
+  } else {
+    Logger.log("  - ⚠️ NON IMPOSTATO (null)");
+  }
+  
+  Logger.log("");
+  Logger.log("📅 FINE CHECK-IN (database):");
+  Logger.log("  - Valore raw: " + evento.fine_checkin);
+  if (evento.fine_checkin) {
+    const fine = new Date(evento.fine_checkin);
+    Logger.log("  - Data/ora: " + fine.toISOString());
+    Logger.log("  - Locale IT: " + fine.toLocaleString('it-IT'));
+  } else {
+    Logger.log("  - ⚠️ NON IMPOSTATO (null)");
+  }
+  
+  Logger.log("");
+  Logger.log("============================");
+}
