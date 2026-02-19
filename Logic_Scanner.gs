@@ -81,6 +81,17 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
     const prenotazione = dbGetPrenotazioneDaToken(qrToken);
     if (!prenotazione) return { success: false, msg: "QR NON VALIDO" };
 
+    // ═══════════════════════════════════════════════════════════════
+    // CONTROLLO STATO (già presente)
+    // ═══════════════════════════════════════════════════════════════
+    if (prenotazione.stato === 'ANNULLATA') {
+      return { 
+        success: false, 
+        msg: "PRENOTAZIONE ANNULLATA",
+        cliente: (prenotazione.cliente_nome + (prenotazione.cliente_cognome ? " " + prenotazione.cliente_cognome : "")).toUpperCase()
+      };
+    }
+
     if (prenotazione.entrato) {
       const oraGiaEntrato = new Date(prenotazione.ora_ingresso).toLocaleTimeString('it-IT', {hour: '2-digit', minute:'2-digit'});
       return { 
@@ -90,7 +101,12 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
       };
     }
 
-    const ok = dbUpdateIngresso(prenotazione.id, oraAttuale.toISOString(), staffId);
+    // ═══════════════════════════════════════════════════════════════
+    // FIX TIMESTAMP - Usa helper locale invece di toISOString()
+    // ═══════════════════════════════════════════════════════════════
+    const timestampLocale = getTimestampLocale();  // ← CORRETTO
+    const ok = dbUpdateIngresso(prenotazione.id, timestampLocale, staffId);
+    
     if (!ok) throw new Error("Update fallito");
 
     return { 
@@ -100,6 +116,7 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
     };
 
   } catch (e) {
+    Logger.log('Errore convalidaIngresso: ' + e.message);
     return { success: false, msg: "ERRORE SERVER" };
   }
 }
@@ -171,4 +188,15 @@ function debugOrariCheckIn() {
   
   Logger.log("");
   Logger.log("============================");
+}
+function getTimestampLocale() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }

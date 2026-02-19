@@ -9,24 +9,39 @@
 <?!= include('css_comune'); ?>
 
 <div class="container-fluid py-3" id="modulo-gestione">
-  <div class="card bg-dark border-secondary shadow-sm mb-4">
+  <!-- Filtri Principali -->
+  <div class="card bg-dark border-secondary shadow-sm mb-3">
     <div class="card-body">
       <div class="row g-3 align-items-end">
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="small opacity-50 text-uppercase fw-bold mb-1 d-block text-success">Evento</label>
           <select id="gestione-select-evento" class="form-select bg-black text-white border-secondary" onchange="cambiaFiltriGestione()">
             <option value="">Caricamento eventi...</option>
           </select>
         </div>
         
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <label class="small opacity-50 text-uppercase fw-bold mb-1 d-block text-info">Filtro PR</label>
           <select id="gestione-select-pr" class="form-select bg-black text-white border-secondary" onchange="cambiaFiltriGestione()">
             <option value="ALL">Tutti i PR (Global)</option>
           </select>
         </div>
 
-        <div class="col-12 col-md-4 d-flex gap-2 justify-content-md-end">
+        <!-- NUOVA: Ricerca Cliente -->
+        <div class="col-12 col-md-3">
+          <label class="small opacity-50 text-uppercase fw-bold mb-1 d-block text-warning">
+            <i class="bi bi-search"></i> Cerca Cliente
+          </label>
+          <input 
+            type="text" 
+            id="search-cliente" 
+            class="form-control bg-black text-white border-secondary" 
+            placeholder="Nome o email..."
+            oninput="filtraRicercaCliente()"
+          >
+        </div>
+
+        <div class="col-12 col-md-3 d-flex gap-2 justify-content-md-end">
           <button class="btn btn-outline-success w-100 w-md-auto" onclick="homeInviaReportAction()" title="Invia Report Email">
             <i class="bi bi-envelope-paper me-1"></i> REPORT
           </button>
@@ -41,6 +56,7 @@
     </div>
   </div>
 
+  <!-- Tabella Prenotazioni -->
   <div class="card bg-dark border-secondary shadow-sm">
     <div class="table-responsive" style="max-height: 75vh;">
       <table class="table table-dark table-hover align-middle mb-0">
@@ -66,8 +82,15 @@
   .riga-annullata { border-left: 4px solid #dc3545 !important; background-color: rgba(220, 53, 69, 0.03) !important; opacity: 0.6; }
   
   /* Select e Input */
-  .form-select { background-color: #000 !important; color: #fff !important; border: 1px solid #333 !important; }
-  .form-select:focus { border-color: #1db954 !important; box-shadow: none !important; }
+  .form-select, .form-control { 
+    background-color: #000 !important; 
+    color: #fff !important; 
+    border: 1px solid #333 !important; 
+  }
+  .form-select:focus, .form-control:focus { 
+    border-color: #1db954 !important; 
+    box-shadow: none !important; 
+  }
 
   /* Bottoni PuntaVida Style */
   #modulo-gestione .btn-outline-success, 
@@ -93,6 +116,8 @@
   .btn-outline-warning:hover { background: #ffc107 !important; color: #000 !important; }
   .btn-outline-danger { color: #dc3545 !important; border-color: #dc3545 !important; }
   .btn-outline-danger:hover { background: #dc3545 !important; color: #fff !important; }
+  .btn-outline-primary { color: #007bff !important; border-color: #007bff !important; }
+  .btn-outline-primary:hover { background: #007bff !important; color: #fff !important; }
 
   /* Badge personalizzati */
   .badge { 
@@ -118,12 +143,19 @@
     color: #ffc107; 
     border: 1px solid rgba(255, 193, 7, 0.3); 
   }
+
+  /* Evidenzia match ricerca */
+  .highlight-search {
+    background-color: rgba(255, 193, 7, 0.3) !important;
+    font-weight: bold;
+  }
 </style>
 
 <script>
   // 1. Variabili Globali di Stato
   let G_EVENTO_ID = window.filtroGestioneEvento || window.eventoSelezionatoManualmente || null;
   let G_PR_NICK = window.filtroGestionePR || "ALL";
+  let G_SEARCH_QUERY = ""; // Nuova: ricerca cliente
   let DATI_LOCALI = [];
   let CHECK_IN_APERTO_SERVER = false;
 
@@ -156,15 +188,25 @@
       .getDatiGestionePrenotazioni(G_EVENTO_ID);
   }
 
-  // 4. Rendering Tabella
+  // 4. Rendering Tabella con Filtri
   function renderizzaTabellaGestione() {
     const corpo = document.getElementById('corpo-tabella-gestione');
     if (!corpo) return;
 
-    // Filtro PR (Case-insensitive e trim)
+    // Filtro PR
     let filtrati = (G_PR_NICK === "ALL") 
       ? DATI_LOCALI 
       : DATI_LOCALI.filter(p => p.pr_nickname && p.pr_nickname.toLowerCase().trim() === G_PR_NICK.toLowerCase().trim());
+
+    // Filtro Ricerca Cliente (nome o email)
+    if (G_SEARCH_QUERY) {
+      const query = G_SEARCH_QUERY.toLowerCase().trim();
+      filtrati = filtrati.filter(p => {
+        const nome = (p.cliente_nome + ' ' + (p.cliente_cognome || '')).toLowerCase();
+        const email = (p.cliente_email || '').toLowerCase();
+        return nome.includes(query) || email.includes(query);
+      });
+    }
 
     if (filtrati.length === 0) {
       corpo.innerHTML = '<tr><td colspan="4" class="text-center py-5 opacity-50">Nessuna prenotazione trovata.</td></tr>';
@@ -185,37 +227,39 @@
         badgeStato = '<span class="badge badge-warning-custom">⏳ ATTESA</span>';
       }
       
+      // Evidenzia match ricerca
+      const nomeCompleto = `${p.cliente_nome} ${p.cliente_cognome || ''}`;
+      const emailCliente = p.cliente_email || '';
+      const highlightClass = G_SEARCH_QUERY ? 'highlight-search' : '';
+      
       // Bottone Check-in
       let htmlAzioneCheckIn = "";
       if (annullata) {
-        // Prenotazione annullata → nessun check-in possibile
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-dark disabled" title="Prenotazione annullata"><i class="bi bi-x-circle opacity-25"></i></button>`;
       } else if (entrato) {
-        // Già entrato
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-success disabled" style="background:#1db954 !important; border:none;"><i class="bi bi-check-lg text-black"></i></button>`;
       } else if (CHECK_IN_APERTO_SERVER) {
-        // Check-in disponibile
-        htmlAzioneCheckIn = `<button class="btn btn-sm btn-outline-success" onclick="eseguiCheckIn('${p.id}')" title="Check-in Manuale"><i class="bi bi-person-check"></i></button>`;
+        // Passa ID e NOME per conferma dettagliata
+        htmlAzioneCheckIn = `<button class="btn btn-sm btn-outline-success" onclick="eseguiCheckIn('${p.id}', '${nomeCompleto.replace(/'/g, "\\'")}', '${emailCliente}')" title="Check-in Manuale"><i class="bi bi-person-check"></i></button>`;
       } else {
-        // Check-in non ancora aperto
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-dark disabled" title="Check-in non ancora aperto"><i class="bi bi-lock-fill opacity-25"></i></button>`;
       }
 
-      // Bottone Reinvia QR (disabilitato se annullata)
+      // Bottone Reinvia QR
       const btnReinvia = annullata 
-        ? `<button class="btn btn-sm btn-dark disabled ms-1" title="Non disponibile per prenotazioni annullate"><i class="bi bi-envelope opacity-25"></i></button>`
-        : `<button class="btn btn-sm btn-outline-warning ms-1" onclick="reinviaQR('${p.id}')" title="Reinvia QR Code"><i class="bi bi-envelope"></i></button>`;
+        ? `<button class="btn btn-sm btn-dark disabled ms-1" title="Non disponibile"><i class="bi bi-envelope opacity-25"></i></button>`
+        : `<button class="btn btn-sm btn-outline-warning ms-1" onclick="reinviaQR('${p.id}')" title="Reinvia QR"><i class="bi bi-envelope"></i></button>`;
 
-      // Bottone Annulla (cambia testo se già annullata)
-      const btnAnnulla = annullata
-        ? `<button class="btn btn-sm btn-dark disabled ms-1" title="Già annullata"><i class="bi bi-trash opacity-25"></i></button>`
-        : `<button class="btn btn-sm btn-outline-danger ms-1" onclick="annullaPrenotazione('${p.id}')" title="Annulla Prenotazione"><i class="bi bi-trash"></i></button>`;
+      // Bottone Annulla/Riattiva
+      const btnAzione = annullata
+        ? `<button class="btn btn-sm btn-outline-primary ms-1" onclick="riattivaPrenotazione('${p.id}')" title="Riattiva Prenotazione"><i class="bi bi-arrow-clockwise"></i></button>`
+        : `<button class="btn btn-sm btn-outline-danger ms-1" onclick="annullaPrenotazione('${p.id}')" title="Annulla"><i class="bi bi-trash"></i></button>`;
 
       return `
         <tr class="${annullata ? 'riga-annullata' : (entrato ? 'riga-entrato' : '')}">
-          <td>
-            <div class="fw-bold">${p.cliente_nome} ${p.cliente_cognome || ''}</div>
-            <div class="small opacity-50">${p.cliente_email || ''}</div>
+          <td class="${highlightClass}">
+            <div class="fw-bold">${nomeCompleto}</div>
+            <div class="small opacity-50">${emailCliente}</div>
           </td>
           <td class="text-success small fw-bold">@${p.pr_nickname}</td>
           <td class="text-center">${badgeStato}</td>
@@ -223,7 +267,7 @@
             <div class="btn-group">
               ${htmlAzioneCheckIn}
               ${btnReinvia}
-              ${btnAnnulla}
+              ${btnAzione}
             </div>
           </td>
         </tr>
@@ -231,18 +275,24 @@
     }).join('');
   }
 
-  // 5. Gestione Report Email
+  // 5. Nuova: Filtro Ricerca Cliente
+  function filtraRicercaCliente() {
+    const input = document.getElementById('search-cliente');
+    G_SEARCH_QUERY = input ? input.value : '';
+    renderizzaTabellaGestione();
+  }
+
+  // 6. Gestione Report Email
   function homeInviaReportAction() {
     if (!G_EVENTO_ID) return;
     
     const prSelezionato = document.getElementById('gestione-select-pr').value;
     const isGlobal = (prSelezionato === "ALL");
     
-    // Recupero email dinamica dal database
     google.script.run.withSuccessHandler(emailPredefinita => {
       Swal.fire({
         title: 'Invia Report CSV',
-        text: isGlobal ? "Il report globale verrà inviato a:" : `Il report di @${prSelezionato} verrà inviato a:`,
+        text: isGlobal ? "Report globale" : `Report di @${prSelezionato}`,
         input: 'email',
         inputValue: emailPredefinita || '',
         showCancelButton: true,
@@ -263,22 +313,66 @@
     }).getEmailPerReport(prSelezionato);
   }
 
-  // 6. Azioni Prenotazione
-  function eseguiCheckIn(id) {
+  // 7. Azioni Prenotazione
+  function eseguiCheckIn(id, nomeCliente, emailCliente) {
     Swal.fire({
-      title: 'Confermi Ingresso?',
+      title: 'Check-in Manuale',
+      html: `
+        <div style="text-align: left; padding: 15px; background: rgba(29, 185, 84, 0.1); border-radius: 8px; margin-top: 15px;">
+          <p style="color: #1db954; font-weight: bold; margin-bottom: 10px;">
+            <i class="bi bi-person-check" style="font-size: 1.2em;"></i> Stai facendo entrare:
+          </p>
+          <p style="font-size: 16px; font-weight: bold; color: #fff; margin: 5px 0;">
+            ${nomeCliente}
+          </p>
+          <p style="font-size: 13px; color: #999; margin: 5px 0;">
+            ${emailCliente}
+          </p>
+        </div>
+        <p style="font-size: 14px; color: #999; margin-top: 15px;">
+          Confermi l'ingresso manuale?
+        </p>
+      `,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'SÌ, ENTRA',
+      confirmButtonText: 'SÌ, FAI ENTRARE',
+      cancelButtonText: 'ANNULLA',
       background: '#1e1e1e',
       color: '#fff',
-      confirmButtonColor: '#1db954'
+      confirmButtonColor: '#1db954',
+      cancelButtonColor: '#6c757d'
     }).then((result) => {
       if (result.isConfirmed) {
+        // Mostra spinner durante operazione
+        Swal.fire({
+          title: 'Check-in in corso...',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => { Swal.showLoading(); },
+          background: '#1e1e1e',
+          color: '#fff'
+        });
+        
         google.script.run.withSuccessHandler(successo => {
           if (successo) {
-            Swal.fire({ title: 'Entrato!', icon: 'success', background: '#1e1e1e', color: '#fff', timer: 1500, showConfirmButton: false });
-            caricaDatiGestione();
+            Swal.fire({ 
+              title: 'Entrato!', 
+              text: nomeCliente + ' è stato registrato.',
+              icon: 'success', 
+              background: '#1e1e1e', 
+              color: '#fff', 
+              timer: 2000,
+              showConfirmButton: false 
+            });
+            setTimeout(() => caricaDatiGestione(), 1500);
+          } else {
+            Swal.fire({
+              title: 'Errore',
+              text: 'Impossibile completare il check-in. Riprova.',
+              icon: 'error',
+              background: '#1e1e1e',
+              color: '#fff'
+            });
           }
         }).azioneCheckInManuale(id);
       }
@@ -288,7 +382,7 @@
   function reinviaQR(id) {
     Swal.fire({
       title: 'Reinviare Email?',
-      text: "Verrà inviata nuovamente l'email con il QR Code originale",
+      text: "Verrà inviata nuovamente l'email con il QR Code",
       icon: 'info',
       showCancelButton: true,
       confirmButtonText: 'SÌ, REINVIA',
@@ -310,9 +404,8 @@
       title: 'Annullare Prenotazione?',
       html: `
         <p style="font-size: 14px; color: #999; margin-top: 10px; line-height: 1.6;">
-          La prenotazione sarà annullata (non eliminata dal database).
-          <br><br>
-          Il cliente potrà ri-registrarsi successivamente se lo desidera.
+          La prenotazione sarà annullata (non eliminata).<br>
+          Il cliente potrà ri-registrarsi successivamente.
         </p>
       `,
       icon: 'warning',
@@ -320,75 +413,80 @@
       confirmButtonColor: '#dc3545',
       cancelButtonColor: '#6c757d',
       confirmButtonText: 'Sì, Annulla',
-      cancelButtonText: 'No, Torna Indietro',
+      cancelButtonText: 'No',
       background: '#1e1e1e',
-      color: '#fff',
-      customClass: {
-        popup: 'swal-dark',
-        title: 'swal-title',
-        htmlContainer: 'swal-text'
-      }
+      color: '#fff'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Mostra spinner durante operazione
-        Swal.fire({
-          title: 'Annullamento in corso...',
-          allowOutsideClick: false,
-          allowEscapeKey: false,
-          didOpen: () => {
-            Swal.showLoading();
-          },
-          background: '#1e1e1e',
-          color: '#fff'
-        });
+        Swal.fire({ title: 'Annullamento...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }, background: '#1e1e1e', color: '#fff' });
         
         google.script.run
           .withSuccessHandler(function(success) {
             if (success) {
               Swal.fire({ 
-                title: 'Prenotazione Annullata',
-                html: `
-                  <p style="color: #999; font-size: 14px; line-height: 1.6;">
-                    La prenotazione è stata annullata correttamente.
-                    <br><br>
-                    Il cliente potrà ri-registrarsi in futuro.
-                  </p>
-                `,
+                title: 'Annullata', 
+                text: 'Il cliente potrà ri-registrarsi.',
                 icon: 'success', 
                 background: '#1e1e1e', 
                 color: '#fff', 
-                timer: 2500,
-                timerProgressBar: true,
+                timer: 2000,
                 showConfirmButton: false 
               });
-              // Ricarica dati dopo 2 secondi
-              setTimeout(() => caricaDatiGestione(), 2000);
+              setTimeout(() => caricaDatiGestione(), 1500);
             } else {
-              Swal.fire({
-                title: 'Errore',
-                text: 'Impossibile annullare la prenotazione. Riprova.',
-                icon: 'error',
-                background: '#1e1e1e',
-                color: '#fff'
-              });
+              Swal.fire({ title: 'Errore', text: 'Impossibile annullare.', icon: 'error', background: '#1e1e1e', color: '#fff' });
             }
-          })
-          .withFailureHandler(function(error) {
-            Swal.fire({
-              title: 'Errore di Sistema',
-              text: 'Si è verificato un errore. Riprova più tardi.',
-              icon: 'error',
-              background: '#1e1e1e',
-              color: '#fff'
-            });
-            console.error('Errore annullamento:', error);
           })
           .azioneAnnullaPrenotazione(id);
       }
     });
   }
 
-  // 7. Utility Selettori
+  // NUOVA: Riattiva prenotazione annullata
+  function riattivaPrenotazione(id) {
+    Swal.fire({
+      title: 'Riattivare Prenotazione?',
+      html: `
+        <p style="font-size: 14px; color: #999; margin-top: 10px; line-height: 1.6;">
+          La prenotazione tornerà attiva.<br>
+          Il QR code originale rimarrà valido.
+        </p>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#1db954',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sì, Riattiva',
+      cancelButtonText: 'No',
+      background: '#1e1e1e',
+      color: '#fff'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({ title: 'Riattivazione...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }, background: '#1e1e1e', color: '#fff' });
+        
+        google.script.run
+          .withSuccessHandler(function(success) {
+            if (success) {
+              Swal.fire({ 
+                title: 'Riattivata!', 
+                text: 'Prenotazione di nuovo attiva.',
+                icon: 'success', 
+                background: '#1e1e1e', 
+                color: '#fff', 
+                timer: 2000,
+                showConfirmButton: false 
+              });
+              setTimeout(() => caricaDatiGestione(), 1500);
+            } else {
+              Swal.fire({ title: 'Errore', text: 'Impossibile riattivare.', icon: 'error', background: '#1e1e1e', color: '#fff' });
+            }
+          })
+          .azioneRiattivaPrenotazione(id);
+      }
+    });
+  }
+
+  // 8. Utility Selettori
   function popolaSelettori(eventi, prs) {
     const selEv = document.getElementById('gestione-select-evento');
     if (selEv) {

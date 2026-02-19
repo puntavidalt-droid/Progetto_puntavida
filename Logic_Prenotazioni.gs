@@ -1,13 +1,9 @@
 /**
  * LOGIC_PRENOTAZIONI.GS
  * Gestisce le operazioni specifiche del modulo Gestione Prenotazioni.
+ * ✅ TIMESTAMP ORA LOCALE
+ */
 
- /**
- * Recupera i dati per la pagina di gestione (Sostituisci la vecchia con questa)
- */
-/**
- * Recupera i dati e verifica se il check-in è aperto
- */
 /**
  * Recupera i dati per la gestione e verifica l'orario di apertura
  */
@@ -62,7 +58,7 @@ function getEmailPerReport(prNickname) {
       return Session.getActiveUser().getEmail();
     }
     
-    // Altrimenti cerchiamo il PR nel database tramite la tua funzione
+    // Altrimenti cerchiamo il PR nel database
     const listaPR = dbGetAllPR();
     const prTrovato = listaPR.find(p => p.nickname === prNickname);
     
@@ -73,52 +69,75 @@ function getEmailPerReport(prNickname) {
 }
 
 /**
- * Azione Check-in Manuale: usa la tua funzione dbUpdateIngresso (già esistente)
+ * Azione Check-in Manuale dalla dashboard
+ * ✅ CORRETTO: Usa timestamp ora locale
  */
 function azioneCheckInManuale(id) {
   try {
-    const oraISO = new Date().toISOString();
-    const staffId = "MANUALE_DASHBOARD"; 
-    return dbUpdateIngresso(id, oraISO, staffId);
-  } catch (e) {
-    return false;
-  }
-}
-
-/**
- * NUOVA: Azione Check-in Manuale che usa la tua funzione dello scanner
- */
-function azioneCheckInManuale(id) {
-  try {
-    const oraISO = new Date().toISOString();
-    const staffId = "MANUALE"; // Identifichiamo che l'ingresso è stato forzato dalla dashboard
+    // ✅ Usa helper per timestamp ora locale
+    const timestampLocale = getTimestampLocale();
+    const staffId = "DASHBOARD_MANUAL"; // Identifica check-in manuale da dashboard
     
-    // Usiamo la tua funzione originale!
-    return dbUpdateIngresso(id, oraISO, staffId);
+    return dbUpdateIngresso(id, timestampLocale, staffId);
   } catch (e) {
     console.error("Errore check-in manuale: " + e.message);
     return false;
   }
 }
+
+/**
+ * Helper timestamp ora locale (duplicato per comodità)
+ */
+function getTimestampLocale() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 /**
  * Azione: Reinvia QR Code a un cliente specifico
  */
 function azioneReinviaQR(id) {
   try {
-    return homeReinviaQR(id); // Riutilizziamo la logica in Logic_home
+    return homeReinviaQR(id); // Riutilizza logica in Logic_Home.gs
   } catch (e) {
+    console.error("Errore reinvio QR: " + e.message);
     return false;
   }
 }
 
 /**
- * Azione: Annulla/Elimina prenotazione
+ * Azione: Annulla prenotazione (logico, non delete fisico)
  */
 function azioneAnnullaPrenotazione(id) {
   try {
+    // dbDeletePrenotazione è deprecata e chiama dbAnnullaPrenotazione
     return dbDeletePrenotazione(id);
   } catch (e) {
-    console.error("Errore azioneAnnullaPrenotazione: " + e.message);
+    console.error("Errore annullamento: " + e.message);
+    return false;
+  }
+}
+
+/**
+ * NUOVA: Azione Riattiva prenotazione annullata (per admin)
+ */
+function azioneRiattivaPrenotazione(id) {
+  try {
+    // Recupera prenotazione per ottenere QR token originale
+    const prenotazione = dbGetPrenotazionePerId(id);
+    if (!prenotazione) return false;
+    
+    // Riattiva mantenendo stesso QR token
+    return dbRiattivaPrenotazione(id, prenotazione.qr_token);
+  } catch (e) {
+    console.error("Errore riattivazione: " + e.message);
     return false;
   }
 }
@@ -138,9 +157,11 @@ function homeInviaReport(eventoId, prNickname, emailDestino) {
     if (filtrati.length === 0) return "Nessun dato da inviare.";
 
     // Creazione del contenuto CSV
-    let csvString = "Nome;Cognome;Email;PR;Stato\n";
+    let csvString = "Nome;Cognome;Email;PR;Stato;Check-in\n";
     filtrati.forEach(p => {
-      csvString += `${p.cliente_nome};${p.cliente_cognome};${p.cliente_email};${p.pr_nickname};${p.entrato ? 'Entrato' : 'In attesa'}\n`;
+      const stato = p.stato === 'ANNULLATA' ? 'Annullata' : (p.entrato ? 'Entrato' : 'In attesa');
+      const checkin = p.entrato ? 'Sì' : 'No';
+      csvString += `${p.cliente_nome};${p.cliente_cognome || ''};${p.cliente_email};${p.pr_nickname};${stato};${checkin}\n`;
     });
 
     const blob = Utilities.newBlob(csvString, 'text/csv', 'Report_PuntaVida.csv');

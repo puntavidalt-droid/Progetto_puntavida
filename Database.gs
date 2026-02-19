@@ -1,7 +1,29 @@
 /**
  * DATABASE.GS
  * Gestisce le comunicazioni con Supabase usando le costanti di config.gs
+ * ✅ TIMESTAMP SEMPRE IN ORA LOCALE ITALIANA
  */
+
+// ═══════════════════════════════════════════════════════════════
+// HELPER TIMESTAMP - ORA LOCALE ITALIANA
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Restituisce timestamp in formato ora locale italiana
+ * Formato: "2026-02-19 10:30:45" (YYYY-MM-DD HH:MM:SS)
+ * IMPORTANTE: Questo sarà l'UNICO formato usato per salvare timestamp
+ */
+function getTimestampLocale() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
 
 // --- SEZIONE EVENTI ---
 
@@ -138,9 +160,10 @@ function dbDeletePrenotazione(id) {
   Logger.log('⚠️ dbDeletePrenotazione deprecata, uso annullamento logico');
   return dbAnnullaPrenotazione(id, 'ADMIN');
 }
+
 /**
- * NUOVA FUNZIONE - Annulla prenotazione logicamente
- * Aggiungi DOPO dbDeletePrenotazione
+ * Annulla prenotazione logicamente
+ * ✅ CORRETTO: Usa timestamp ora locale + pulisce riattivata_il
  */
 function dbAnnullaPrenotazione(id, origine = 'ADMIN') {
   try {
@@ -155,8 +178,9 @@ function dbAnnullaPrenotazione(id, origine = 'ADMIN') {
       },
       payload: JSON.stringify({
         stato: 'ANNULLATA',
-        annullata_il: new Date().toISOString(),
-        annullata_da: origine
+        annullata_il: getTimestampLocale(),  // ← CORRETTO: ora locale
+        annullata_da: origine,
+        riattivata_il: null  // ← CORRETTO: pulisce timestamp vecchio
       })
     };
     
@@ -170,8 +194,8 @@ function dbAnnullaPrenotazione(id, origine = 'ADMIN') {
 }
 
 /**
- * NUOVA FUNZIONE - Riattiva prenotazione annullata
- * Aggiungi DOPO dbAnnullaPrenotazione
+ * Riattiva prenotazione annullata
+ * ✅ CORRETTO: Usa timestamp ora locale + pulisce annullata_il/da
  */
 function dbRiattivaPrenotazione(id, nuovoQrToken) {
   try {
@@ -187,9 +211,9 @@ function dbRiattivaPrenotazione(id, nuovoQrToken) {
       payload: JSON.stringify({
         stato: 'ATTIVA',
         qr_token: nuovoQrToken,
-        riattivata_il: new Date().toISOString(),
-        annullata_il: null,
-        annullata_da: null
+        riattivata_il: getTimestampLocale(),  // ← CORRETTO: ora locale
+        annullata_il: null,                    // ← CORRETTO: pulisce timestamp vecchio
+        annullata_da: null                     // ← CORRETTO: pulisce origine vecchia
       })
     };
     
@@ -203,8 +227,7 @@ function dbRiattivaPrenotazione(id, nuovoQrToken) {
 }
 
 /**
- * NUOVA FUNZIONE - Recupera prenotazione per email e evento
- * Aggiungi DOPO dbRiattivaPrenotazione
+ * Recupera prenotazione per email e evento
  */
 function dbGetPrenotazionePerEmailEvento(email, eventoId) {
   try {
@@ -230,8 +253,7 @@ function dbGetPrenotazionePerEmailEvento(email, eventoId) {
 }
 
 /**
- * NUOVA FUNZIONE - Recupera prenotazione da cancel token
- * Aggiungi DOPO dbGetPrenotazionePerEmailEvento
+ * Recupera prenotazione da cancel token
  */
 function dbGetPrenotazioneDaCancelToken(cancelToken) {
   if (!cancelToken) return null;
@@ -256,8 +278,12 @@ function dbGetPrenotazioneDaCancelToken(cancelToken) {
   }
 }
 
-/** * 8. Aggiorna il record segnando l'ingresso effettuato */
-function dbUpdateIngresso(id, dataIngressoISO, staffId) {
+/**
+ * Aggiorna il record segnando l'ingresso effettuato
+ * ⚠️ NOTA: Riceve dataIngressoISO da Logic_Scanner.gs
+ * Logic_Scanner.gs deve essere aggiornato per passare timestamp locale
+ */
+function dbUpdateIngresso(id, dataIngressoLocale, staffId) {
   const options = {
     method: "patch",
     contentType: "application/json",
@@ -268,8 +294,9 @@ function dbUpdateIngresso(id, dataIngressoISO, staffId) {
     },
     payload: JSON.stringify({ 
       entrato: true, 
-      ora_ingresso: dataIngressoISO,
-      scansionato_da: staffId 
+      ora_ingresso: dataIngressoLocale,  // ← Ora locale
+      scansionato_da: staffId,
+      stato: 'ATTIVA'  // ← Forza ATTIVA su check-in
     })
   };
   const url = SB_URL + "/rest/v1/prenotazioni?id=eq." + id;
@@ -325,14 +352,12 @@ function dbCheckPrenotazioniPerId(eventoIdUUID) {
 }
 
 /**
- * MODIFICA FUNZIONE ESISTENTE - dbGetConteggioPrenotazioni
- * Trova questa funzione (circa riga 215) e SOSTITUISCI con questa versione
- * che conta SOLO le prenotazioni ATTIVE (esclude annullate)
+ * Conta prenotazioni ATTIVE (esclude annullate)
  */
 function dbGetConteggioPrenotazioni(eventoId) {
   const url = SB_URL + 
               '/rest/v1/prenotazioni?evento_id=eq.' + eventoId + 
-              '&stato=eq.ATTIVA' +  // ← MODIFICATO: conta solo ATTIVE
+              '&stato=eq.ATTIVA' +
               '&select=id';
   
   const res = UrlFetchApp.fetch(url, {
@@ -347,15 +372,13 @@ function dbGetConteggioPrenotazioni(eventoId) {
 }
 
 /**
- * MODIFICA FUNZIONE ESISTENTE - dbVerificaEmailEsistente
- * Trova questa funzione (circa riga 235) e SOSTITUISCI
- * Deve verificare solo tra le prenotazioni ATTIVE
+ * Verifica email esistente tra prenotazioni ATTIVE
  */
 function dbVerificaEmailEsistente(email, eventoId) {
   const emailSicura = encodeURIComponent(email.trim());
   const url = SB_URL + '/rest/v1/prenotazioni?cliente_email=eq.' + emailSicura + 
               '&evento_id=eq.' + eventoId + 
-              '&stato=eq.ATTIVA' +  // ← MODIFICATO: verifica solo ATTIVE
+              '&stato=eq.ATTIVA' +
               '&select=id';
   const res = UrlFetchApp.fetch(url, { 
     headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
@@ -381,13 +404,12 @@ function dbGetLogoUrl() {
 }
 
 /**
- * MODIFICA FUNZIONE ESISTENTE - dbGetConteggioCheckin
- * Trova questa funzione (circa riga 281) e SOSTITUISCI con questa versione
+ * Conta check-in effettuati (solo ATTIVE)
  */
 function dbGetConteggioCheckin(eventoId) {
   const url = SB_URL + '/rest/v1/prenotazioni?evento_id=eq.' + eventoId + 
               '&entrato=eq.true' +
-              '&stato=eq.ATTIVA' +  // ← MODIFICATO: conta solo ATTIVE
+              '&stato=eq.ATTIVA' +
               '&select=id';
   const res = UrlFetchApp.fetch(url, { 
     headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
@@ -461,7 +483,7 @@ function dbUpdateStaff(id, record) {
 }
 
 function dbGetProssimoEvento() {
-  const oggi = new Date().toISOString().split('T')[0];
+  const oggi = new Date().toISOString().split('T')[0];  // ← Questo è OK, serve solo data
   const url = `${SB_URL}/rest/v1/eventi?data_evento=gte.${oggi}&order=data_evento.asc&limit=1`;
   const options = {
     "method": "get",
@@ -568,17 +590,14 @@ function dbGetEventoIdByCodice(codice) {
 }
 
 /**
- * MODIFICA FUNZIONE ESISTENTE - dbGetPrenotazioniLive
- * Trova questa funzione (circa riga 470) e SOSTITUISCI completamente
+ * Recupera prenotazioni live per evento
+ * Include campo stato
  */
 function dbGetPrenotazioniLive(eventoId) {
   if (!eventoId) return [];
   
-  // ← MODIFICATO: aggiunto filtro &stato=neq.ANNULLATA
   const query = "select=*,pr(nickname)";
-  const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + 
-
-              "&" + query;
+  const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + "&" + query;
   
   const options = {
     "method": "get",
@@ -602,24 +621,22 @@ function dbGetPrenotazioniLive(eventoId) {
       evento_id: p.evento_id,
       pr_nickname: (p.pr && p.pr.nickname) ? p.pr.nickname : "Generico",
       entrato: p.entrato === true || String(p.entrato) === "true",
-      stato: p.stato || 'ATTIVA'  // ← AGGIUNGI QUESTA RIGA
+      stato: p.stato || 'ATTIVA'
     }));
   } catch (e) {
     console.error("Errore dbGetPrenotazioniLive: " + e.message);
     return [];
   }
 }
+
 /**
  * Verifica le credenziali dello Staff per il Login
- * Coerente con lo stile del resto del database.gs
  */
 function dbGetStaffByLogin(nickname, pin) {
   try {
-    // 1. Costruiamo l'URL seguendo il tuo standard
     const url = SB_URL + "/rest/v1/staff?nickname=eq." + encodeURIComponent(nickname) + 
                 "&codice_pin=eq." + encodeURIComponent(pin) + "&select=*";
     
-    // 2. Eseguiamo la chiamata diretta come nelle tue altre funzioni
     const res = UrlFetchApp.fetch(url, { 
       headers: { 
         "apikey": SB_KEY, 
@@ -628,15 +645,12 @@ function dbGetStaffByLogin(nickname, pin) {
       "muteHttpExceptions": true 
     });
     
-    // 3. Verifichiamo la risposta
     if (res.getResponseCode() !== 200) {
       console.error("Errore risposta Supabase: " + res.getContentText());
       return null;
     }
     
     const data = JSON.parse(res.getContentText());
-    
-    // 4. Se trova un record, restituisce lo staff, altrimenti null
     return (data && data.length > 0) ? data[0] : null;
 
   } catch (e) {
@@ -644,6 +658,9 @@ function dbGetStaffByLogin(nickname, pin) {
     throw e; 
   }
 }
+
+// --- DEBUG & TEST ---
+
 function testGenerateAppLink() {
   Logger.log('=== TEST LINK GENERATION ===');
   
@@ -660,15 +677,11 @@ function testGenerateAppLink() {
   Logger.log('Scanner: ' + linkScanner);
   
   Logger.log('Base URL: ' + getAppUrl());
-
 }
-/**
- * DEBUG: Verifica cancel_token nel database
- * Esegui questo su Apps Script per vedere i dati
- */
+
 function debugVerificaCancelToken() {
-  const email = "test-ann-01@fake.com"; // La tua email di test
-  const eventoId = dbGetEventoIdByCodice("LOCA2"); // Il tuo evento
+  const email = "test-ann-01@fake.com";
+  const eventoId = dbGetEventoIdByCodice("LOCA2");
   
   const prenotazione = dbGetPrenotazionePerEmailEvento(email, eventoId);
   
@@ -677,7 +690,7 @@ function debugVerificaCancelToken() {
     Logger.log("ID: " + prenotazione.id);
     Logger.log("Email: " + prenotazione.cliente_email);
     Logger.log("QR Token: " + prenotazione.qr_token);
-    Logger.log("Cancel Token: " + prenotazione.cancel_token); // ← Questo deve esserci!
+    Logger.log("Cancel Token: " + prenotazione.cancel_token);
     Logger.log("Stato: " + prenotazione.stato);
     Logger.log("============================");
     
@@ -693,6 +706,7 @@ function debugVerificaCancelToken() {
     Logger.log("❌ Prenotazione non trovata");
   }
 }
+
 function debugStatoPrenotazione() {
   const email = "test-ann-01@fake.com";
   const eventoId = dbGetEventoIdByCodice("LOCA2");
@@ -705,8 +719,19 @@ function debugStatoPrenotazione() {
     Logger.log("Stato: " + prenotazione.stato);
     Logger.log("Annullata il: " + prenotazione.annullata_il);
     Logger.log("Annullata da: " + prenotazione.annullata_da);
+    Logger.log("Riattivata il: " + prenotazione.riattivata_il);
     Logger.log("========================");
   } else {
     Logger.log("Prenotazione non trovata");
   }
+}
+
+/**
+ * TEST: Verifica che getTimestampLocale() funzioni
+ */
+function testTimestampLocale() {
+  Logger.log("=== TEST TIMESTAMP LOCALE ===");
+  Logger.log("Ora attuale (locale): " + getTimestampLocale());
+  Logger.log("Formato atteso: YYYY-MM-DD HH:MM:SS");
+  Logger.log("=============================");
 }
