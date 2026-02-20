@@ -157,11 +157,19 @@ function homeInviaReport(eventoId, prNickname, emailDestino) {
     if (filtrati.length === 0) return "Nessun dato da inviare.";
 
     // Creazione del contenuto CSV
-    let csvString = "Nome;Cognome;Email;PR;Stato;Check-in\n";
+     let csvString = "Nome;Cognome;Email;Evento;PR;Staff;Stato;Check-in;Ora Ingresso\n";
     filtrati.forEach(p => {
       const stato = p.stato === 'ANNULLATA' ? 'Annullata' : (p.entrato ? 'Entrato' : 'In attesa');
       const checkin = p.entrato ? 'Sì' : 'No';
-      csvString += `${p.cliente_nome};${p.cliente_cognome || ''};${p.cliente_email};${p.pr_nickname};${stato};${checkin}\n`;
+      csvString += `${p.cliente_nome};` +
+                   `${p.cliente_cognome || ''};` +
+                   `${p.cliente_email};` +
+                   `${p.codice_evento};` +              // ← NUOVO
+                   `${p.nickname_pr};` +                // ← NUOVO
+                   `${p.nickname_staff || 'N/A'};` +    // ← NUOVO
+                   `${stato};` +
+                   `${checkin};` +
+                   `${p.ora_ingresso || ''}\n`;         // ← NUOVO
     });
 
     const blob = Utilities.newBlob(csvString, 'text/csv', 'Report_PuntaVida.csv');

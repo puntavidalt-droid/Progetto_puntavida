@@ -1,7 +1,14 @@
 /**
  * LOGIC SCANNER
  * Gestisce la convalida dei QR Code e la sicurezza degli accessi staff.
+ * ✅ OTTIMIZZATO: Cache per ridurre query ripetute
  */
+
+// ═══════════════════════════════════════════════════════════════
+// CACHE per ridurre query ripetute durante sessione scanner
+// ═══════════════════════════════════════════════════════════════
+let CACHE_EVENTO = null;
+let CACHE_STAFF = null;
 
 function renderScanner(e) {
   const template = HtmlService.createTemplateFromFile('scanner');
@@ -15,11 +22,29 @@ function renderScanner(e) {
 
 /**
  * Verifica l'accesso, l'orario e recupera il LOGO tramite DATABASE.gs
+ * ✅ USA CACHE per evento e staff
  */
 function verificaAccessoScanner(codiceEvento, nicknameStaff) {
   try {
-    const staffId = dbGetStaffIdByNickname(nicknameStaff);
-    const evento = dbGetEventoInfo(codiceEvento);
+    // ═══════════════════════════════════════════════════════════════
+    // USA CACHE STAFF (evita query ripetute)
+    // ═══════════════════════════════════════════════════════════════
+    let staffId;
+    if (!CACHE_STAFF || CACHE_STAFF.nickname !== nicknameStaff) {
+      staffId = dbGetStaffIdByNickname(nicknameStaff);
+      CACHE_STAFF = { nickname: nicknameStaff, id: staffId };
+    } else {
+      staffId = CACHE_STAFF.id;
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // USA CACHE EVENTO (evita query ripetute)
+    // ═══════════════════════════════════════════════════════════════
+    let evento;
+    if (!CACHE_EVENTO || CACHE_EVENTO.codice_evento !== codiceEvento) {
+      CACHE_EVENTO = dbGetEventoInfo(codiceEvento);
+    }
+    evento = CACHE_EVENTO;
     
     if (!staffId) return { authorized: false, msg: "STAFF NON RICONOSCIUTO" };
     if (!evento) return { authorized: false, msg: "EVENTO NON TROVATO" };
@@ -48,7 +73,6 @@ function verificaAccessoScanner(codiceEvento, nicknameStaff) {
       oraApertura: oraAperturaTesto,
       nomeEvento: (evento.nome_evento || evento.nome || "EVENTO").toUpperCase(),
       nomeStaff: nicknameStaff.toUpperCase(),
-      // MODIFICA CENTRALIZZATA: Chiamiamo la funzione del Database
       logoUrl: dbGetLogoUrl() 
     };
   } catch (e) {
@@ -81,9 +105,7 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
     const prenotazione = dbGetPrenotazioneDaToken(qrToken);
     if (!prenotazione) return { success: false, msg: "QR NON VALIDO" };
 
-    // ═══════════════════════════════════════════════════════════════
-    // CONTROLLO STATO (già presente)
-    // ═══════════════════════════════════════════════════════════════
+    // Controllo stato
     if (prenotazione.stato === 'ANNULLATA') {
       return { 
         success: false, 
@@ -101,10 +123,8 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
       };
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // FIX TIMESTAMP - Usa helper locale invece di toISOString()
-    // ═══════════════════════════════════════════════════════════════
-    const timestampLocale = getTimestampLocale();  // ← CORRETTO
+    // Timestamp locale
+    const timestampLocale = getTimestampLocale();
     const ok = dbUpdateIngresso(prenotazione.id, timestampLocale, staffId);
     
     if (!ok) throw new Error("Update fallito");
@@ -120,15 +140,27 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
     return { success: false, msg: "ERRORE SERVER" };
   }
 }
-/**
- * ================================================================
- * DEBUG: Verifica orari check-in
- * Aggiungi questa funzione in fondo a Logic_Scanner.gs
- * ================================================================
- */
 
+/**
+ * Helper timestamp ora locale
+ */
+function getTimestampLocale() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * DEBUG: Verifica orari check-in
+ */
 function debugOrariCheckIn() {
-  const codiceEvento = "LOCA2"; // Il tuo evento
+  const codiceEvento = "LOCA2";
   
   Logger.log("=== DEBUG ORARI CHECK-IN ===");
   
@@ -188,15 +220,4 @@ function debugOrariCheckIn() {
   
   Logger.log("");
   Logger.log("============================");
-}
-function getTimestampLocale() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }

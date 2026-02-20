@@ -205,6 +205,8 @@ function salvaPrenotazione(payload) {
       pr_id: prId,
       qr_token: qrToken,
       cancel_token: cancelToken,  // ← AGGIUNTO
+      codice_evento: evento.codice_evento,
+      nickname_pr: payload.pr || 'Generico',
       stato: 'ATTIVA',            // ← AGGIUNTO
        created_at: getTimestampLocale()  // ← CORRETTO: ora locale
     };

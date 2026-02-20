@@ -284,6 +284,16 @@ function dbGetPrenotazioneDaCancelToken(cancelToken) {
  * Logic_Scanner.gs deve essere aggiornato per passare timestamp locale
  */
 function dbUpdateIngresso(id, dataIngressoLocale, staffId) {
+  // Recupera nickname staff da UUID
+  let nicknameStaff = null;
+  
+  if (staffId && staffId !== 'DASHBOARD_MANUAL') {
+    const staff = dbGetStaffById(staffId);
+    nicknameStaff = staff ? staff.nickname : null;
+  } else if (staffId === 'DASHBOARD_MANUAL') {
+    nicknameStaff = 'DASHBOARD_MANUAL';
+  }
+  
   const options = {
     method: "patch",
     contentType: "application/json",
@@ -294,11 +304,13 @@ function dbUpdateIngresso(id, dataIngressoLocale, staffId) {
     },
     payload: JSON.stringify({ 
       entrato: true, 
-      ora_ingresso: dataIngressoLocale,  // ← Ora locale
+      ora_ingresso: dataIngressoLocale,
       scansionato_da: staffId,
-      stato: 'ATTIVA'  // ← Forza ATTIVA su check-in
+      nickname_staff: nicknameStaff,  // ← NUOVO
+      stato: 'ATTIVA'
     })
   };
+  
   const url = SB_URL + "/rest/v1/prenotazioni?id=eq." + id;
   const res = UrlFetchApp.fetch(url, options);
   return res.getResponseCode() === 204 || res.getResponseCode() === 200;
@@ -621,7 +633,12 @@ function dbGetPrenotazioniLive(eventoId) {
       evento_id: p.evento_id,
       pr_nickname: (p.pr && p.pr.nickname) ? p.pr.nickname : "Generico",
       entrato: p.entrato === true || String(p.entrato) === "true",
-      stato: p.stato || 'ATTIVA'
+      stato: p.stato || 'ATTIVA',
+      ora_ingresso: p.ora_ingresso || null,  // ← AGGIUNGI QUESTA
+            // ← AGGIUNGI QUESTE 3 RIGHE
+      codice_evento: p.codice_evento || 'N/A',
+      nickname_pr: p.nickname_pr || ((p.pr && p.pr.nickname) ? p.pr.nickname : 'Generico'),
+      nickname_staff: p.nickname_staff || null
     }));
   } catch (e) {
     console.error("Errore dbGetPrenotazioniLive: " + e.message);
@@ -735,3 +752,25 @@ function testTimestampLocale() {
   Logger.log("Formato atteso: YYYY-MM-DD HH:MM:SS");
   Logger.log("=============================");
 }
+/**
+ * NUOVA: Recupera staff da UUID
+ */
+function dbGetStaffById(staffId) {
+  if (!staffId) return null;
+  
+  try {
+    const url = SB_URL + "/rest/v1/staff?id=eq." + staffId + "&select=*";
+    const res = UrlFetchApp.fetch(url, { 
+      headers: { 
+        "apikey": SB_KEY, 
+        "Authorization": "Bearer " + SB_KEY 
+      }
+    });
+    const data = JSON.parse(res.getContentText());
+    return data.length > 0 ? data[0] : null;
+  } catch (e) {
+    Logger.log('Errore dbGetStaffById: ' + e.message);
+    return null;
+  }
+}
+
