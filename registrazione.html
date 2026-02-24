@@ -49,6 +49,42 @@
                 <input type="email" id="email" class="form-control" placeholder="Indirizzo Email" required>
               </div>
               
+              <!-- ═══════════════════════════════════════════════════════════════ -->
+              <!-- SEZIONE PASTO - RENDERIZZATA LATO SERVER -->
+              <!-- ═══════════════════════════════════════════════════════════════ -->
+              
+              <? if (eventoInfo.tipo_evento !== 'SOLO_DANZA') { ?>
+                <div class="mb-3">
+                  
+                  <? if (eventoInfo.pasto_obbligatorio) { ?>
+                    <!-- PASTO OBBLIGATORIO -->
+                    <div class="alert alert-warning mb-0" role="alert">
+                      <strong>🍽️ <?= eventoInfo.tipo_evento === 'CON_PRANZO' ? 'Pranzo' : 'Cena' ?> incluso</strong> (obbligatorio)
+                      <? if (eventoInfo.prezzo_con_pasto) { ?>
+                        <br><small>Prezzo: €<?= eventoInfo.prezzo_con_pasto.toFixed(2) ?></small>
+                      <? } ?>
+                    </div>
+                    <input type="hidden" id="include_pasto" value="true">
+                    
+                  <? } else { ?>
+                    <!-- PASTO FACOLTATIVO - VERSIONE SEMPLIFICATA SENZA CHECK LIVE -->
+                    <div class="form-check p-3 border rounded">
+                      <input class="form-check-input" type="checkbox" id="include_pasto" style="width: 20px; height: 20px;">
+                      <label class="form-check-label ms-2" for="include_pasto" style="cursor: pointer;">
+                        <strong>🍽️ Aggiungi <?= eventoInfo.tipo_evento === 'CON_PRANZO' ? 'pranzo' : 'cena' ?></strong>
+                        <? if (eventoInfo.prezzo_con_pasto) { ?>
+                          (€<?= eventoInfo.prezzo_con_pasto.toFixed(2) ?>)
+                        <? } ?>
+                      </label>
+                    </div>
+                  <? } ?>
+                  
+                </div>
+              <? } else { ?>
+                <!-- SOLO DANZA - nessun campo pasto -->
+                <input type="hidden" id="include_pasto" value="false">
+              <? } ?>
+              
               <button id="btn-invia" class="btn btn-registrazione w-100 py-2 fw-bold" onclick="inviaDati()">
                 REGISTRATI ORA
               </button>
@@ -63,6 +99,10 @@
               <div class="alert alert-success small fw-bold">PRENOTAZIONE EFFETTUATA!</div>
               <p class="small">Salva questo QR Code e mostralo all'ingresso.</p>
               <div id="qrcode" class="d-flex justify-content-center mb-4 border p-2 bg-white"></div>
+              
+              <!-- Messaggio custom se presente -->
+              <div id="messaggio-custom" class="alert alert-info small d-none"></div>
+              
               <button type="button" class="btn btn-outline-light w-100" onclick="nuovaPrenotazione()">
                 Nuova Prenotazione
               </button>
@@ -81,5 +121,158 @@
     </div>
 
     <?!= include('js_registrazione'); ?>
+    
+    <script>
+      // ═══════════════════════════════════════════════════════════════
+      // FUNZIONE INVIO DATI - MODIFICATA per includere campo pasto
+      // ═══════════════════════════════════════════════════════════════
+      
+      function inviaDati() {
+        const nome = document.getElementById('nome').value.trim();
+        const cognome = document.getElementById('cognome').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const evento = document.getElementById('evento_id_hidden').value;
+        const pr = document.getElementById('pr_nickname_hidden').value;
+        
+        // Validazioni base
+        if (!nome || nome.length < 2) {
+          mostraErrore('Nome troppo corto (minimo 2 caratteri)');
+          return;
+        }
+        
+        if (!email || !email.includes('@')) {
+          mostraErrore('Email non valida');
+          return;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // DETERMINA include_pasto
+        // ═══════════════════════════════════════════════════════════════
+        const checkboxPasto = document.getElementById('include_pasto');
+        let includePasto = false;
+        
+        if (checkboxPasto) {
+          if (checkboxPasto.type === 'checkbox') {
+            // Checkbox selezionabile (pasto facoltativo)
+            includePasto = checkboxPasto.checked;
+          } else if (checkboxPasto.type === 'hidden') {
+            // Hidden input (pasto obbligatorio o non disponibile)
+            includePasto = checkboxPasto.value === 'true';
+          }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // PAYLOAD CON CAMPO PASTO
+        // ═══════════════════════════════════════════════════════════════
+        const payload = {
+          nome: nome,
+          cognome: cognome,
+          email: email,
+          evento: evento,
+          pr: pr,
+          include_pasto: includePasto  // ← CAMPO NUOVO
+        };
+        
+        // Salva payload per usarlo in handleSuccess
+        window.lastPayload = payload;
+        
+        // Mostra loading
+        document.getElementById('form-box').classList.add('d-none');
+        document.getElementById('loading-box').classList.remove('d-none');
+        
+        // Chiamata server
+        google.script.run
+          .withSuccessHandler(handleSuccessRegistrazione)
+          .withFailureHandler(handleErrorRegistrazione)
+          .salvaPrenotazione(payload);
+      }
+      
+      function handleSuccessRegistrazione(response) {
+        if (response.success) {
+          document.getElementById('loading-box').classList.add('d-none');
+          document.getElementById('success-box').classList.remove('d-none');
+          
+          // Genera QR Code
+          new QRCode(document.getElementById('qrcode'), {
+            text: response.token,
+            width: 200,
+            height: 200
+          });
+          
+          // Recupera se ha preso il pasto (dall'ultimo payload inviato)
+          const haPreso = window.lastPayload ? window.lastPayload.include_pasto : false;
+          
+          // Se NON ha preso pasto E prezzo dance visibile → mostra prezzo
+          if (!haPreso && <?= eventoInfo.visualizza_prezzo_danza ? 'true' : 'false' ?> && <?= eventoInfo.prezzo_solo_danza ? eventoInfo.prezzo_solo_danza : 0 ?> > 0) {
+            const msgDiv = document.getElementById('messaggio-custom');
+            let html = '<strong>💰 Ingresso: €<?= eventoInfo.prezzo_solo_danza ? eventoInfo.prezzo_solo_danza.toFixed(2) : '0.00' ?></strong>';
+            
+            // Aggiungi messaggio prezzo dance se presente
+            const msgPrezzoDanza = <?= eventoInfo.messaggio_prezzo_danza ? "'" + eventoInfo.messaggio_prezzo_danza + "'" : 'null' ?>;
+            if (msgPrezzoDanza) {
+              html += '<br><small>' + msgPrezzoDanza + '</small>';
+            }
+            
+            msgDiv.innerHTML = html;
+            msgDiv.classList.remove('d-none');
+          }
+          // Se ha messaggio post-registrazione → mostra
+          else if (response.messaggio_custom) {
+            const msgDiv = document.getElementById('messaggio-custom');
+            msgDiv.innerHTML = '<strong>ℹ️ Importante:</strong><br>' + response.messaggio_custom;
+            msgDiv.classList.remove('d-none');
+          }
+          
+        } else {
+          mostraErrore(response.msg || 'Errore durante la registrazione');
+        }
+      }
+      
+      function handleErrorRegistrazione(error) {
+        mostraErrore('Errore di connessione. Riprova.');
+        console.error(error);
+      }
+      
+      function mostraErrore(messaggio) {
+        document.getElementById('loading-box').classList.add('d-none');
+        document.getElementById('error-box').classList.remove('d-none');
+        document.getElementById('error-message').textContent = messaggio;
+      }
+      
+      function ripristinaForm() {
+        document.getElementById('error-box').classList.add('d-none');
+        document.getElementById('form-box').classList.remove('d-none');
+      }
+      
+      function nuovaPrenotazione() {
+        // Nascondi success box
+        document.getElementById('success-box').classList.add('d-none');
+        
+        // Mostra form box
+        document.getElementById('form-box').classList.remove('d-none');
+        
+        // Reset campi form
+        document.getElementById('nome').value = '';
+        document.getElementById('cognome').value = '';
+        document.getElementById('email').value = '';
+        
+        // Reset checkbox pasto se presente
+        const checkboxPasto = document.getElementById('include_pasto');
+        if (checkboxPasto && checkboxPasto.type === 'checkbox') {
+          checkboxPasto.checked = false;
+        }
+        
+        // Pulisci QR code
+        document.getElementById('qrcode').innerHTML = '';
+        
+        // Nascondi messaggio custom
+        const msgCustom = document.getElementById('messaggio-custom');
+        msgCustom.innerHTML = '';
+        msgCustom.classList.add('d-none');
+        
+        // Reset variabile payload
+        window.lastPayload = null;
+      }
+    </script>
   </body>
 </html>

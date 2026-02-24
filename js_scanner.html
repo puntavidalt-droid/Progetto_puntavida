@@ -58,6 +58,7 @@ function onScanSuccess(decodedText) {
 
 /**
  * Mostra l'esito dello scan (VAI o STOP)
+ * ✅ MODIFICATO: Mostra badge pasto se presente
  */
 function showResult(res) {
   document.getElementById('loading-scanner').classList.add('d-none');
@@ -65,6 +66,7 @@ function showResult(res) {
   const resTitle = document.getElementById('res-title');
   const resName = document.getElementById('res-name');
   const resInfo = document.getElementById('res-info');
+  const pastoBadge = document.getElementById('res-pasto-badge'); // ✅ AGGIUNTO
   
   box.classList.remove('d-none');
 
@@ -84,6 +86,13 @@ function showResult(res) {
     // Se il messaggio contiene "GIÀ ENTRATO", lo evidenziamo
     resInfo.innerHTML = `<span style="color: #ff4444;">${res.msg.toUpperCase()}</span>`;
     console.warn("Accesso negato:", res.msg);
+  }
+  
+  // ✅ AGGIUNTO: Mostra badge pasto se include_pasto = true
+  if (res.include_pasto) {
+    pastoBadge.classList.remove('d-none');
+  } else {
+    pastoBadge.classList.add('d-none');
   }
 }
 

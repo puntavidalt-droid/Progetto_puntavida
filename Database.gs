@@ -638,7 +638,9 @@ function dbGetPrenotazioniLive(eventoId) {
             // ← AGGIUNGI QUESTE 3 RIGHE
       codice_evento: p.codice_evento || 'N/A',
       nickname_pr: p.nickname_pr || ((p.pr && p.pr.nickname) ? p.pr.nickname : 'Generico'),
-      nickname_staff: p.nickname_staff || null
+      nickname_staff: p.nickname_staff || null ,
+      // Dentro il return map, dopo nickname_staff:
+      include_pasto: p.include_pasto || false,  // ← AGGIUNGI QUESTA RIGA
     }));
   } catch (e) {
     console.error("Errore dbGetPrenotazioniLive: " + e.message);
@@ -773,4 +775,68 @@ function dbGetStaffById(staffId) {
     return null;
   }
 }
+// ═══════════════════════════════════════════════════════════════
+// AGGIUNGI QUESTE FUNZIONI IN FONDO A Database.gs
+// (dopo tutte le funzioni esistenti)
+// ═══════════════════════════════════════════════════════════════
 
+/**
+ * Statistiche posti LIVE (totale + pasto in 1 query)
+ */
+function dbGetStatistichePostiLive(eventoId) {
+  try {
+    const url = SB_URL + "/rest/v1/prenotazioni?" +
+                "evento_id=eq." + eventoId + 
+                "&stato=eq.ATTIVA" +
+                "&select=include_pasto";
+    
+    const res = UrlFetchApp.fetch(url, {
+      headers: { 
+        "apikey": SB_KEY, 
+        "Authorization": "Bearer " + SB_KEY 
+      }
+    });
+    
+    const prenotazioni = JSON.parse(res.getContentText());
+    const totale = prenotazioni.length;
+    const conPasto = prenotazioni.filter(p => p.include_pasto === true).length;
+    
+    return {
+      totale: totale,
+      conPasto: conPasto,
+      soloDanza: totale - conPasto
+    };
+    
+  } catch (e) {
+    Logger.log('Errore dbGetStatistichePostiLive: ' + e.message);
+    return { totale: 0, conPasto: 0, soloDanza: 0 };
+  }
+}
+
+/**
+ * Admin: Aggiungi/Rimuovi cena a prenotazione esistente
+ */
+function dbAdminModificaPasto(prenotazioneId, includePasto) {
+  try {
+    const url = SB_URL + '/rest/v1/prenotazioni?id=eq.' + prenotazioneId;
+    
+    const options = {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY
+      },
+      payload: JSON.stringify({
+        include_pasto: includePasto
+      })
+    };
+    
+    const res = UrlFetchApp.fetch(url, options);
+    return res.getResponseCode() === 204 || res.getResponseCode() === 200;
+    
+  } catch (e) {
+    Logger.log('Errore dbAdminModificaPasto: ' + e.message);
+    return false;
+  }
+}

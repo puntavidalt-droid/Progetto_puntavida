@@ -2,6 +2,7 @@
  * LOGIC SCANNER
  * Gestisce la convalida dei QR Code e la sicurezza degli accessi staff.
  * ✅ OTTIMIZZATO: Cache per ridurre query ripetute
+ * ✅ AGGIUNTO: Supporto visualizzazione badge pasto
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -82,6 +83,7 @@ function verificaAccessoScanner(codiceEvento, nicknameStaff) {
 
 /**
  * Valida il QR Code durante la scansione
+ * ✅ AGGIUNTO: Restituisce anche include_pasto per badge
  */
 function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
   try {
@@ -110,7 +112,8 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
       return { 
         success: false, 
         msg: "PRENOTAZIONE ANNULLATA",
-        cliente: (prenotazione.cliente_nome + (prenotazione.cliente_cognome ? " " + prenotazione.cliente_cognome : "")).toUpperCase()
+        cliente: (prenotazione.cliente_nome + (prenotazione.cliente_cognome ? " " + prenotazione.cliente_cognome : "")).toUpperCase(),
+        include_pasto: prenotazione.include_pasto || false  // ✅ AGGIUNTO
       };
     }
 
@@ -119,7 +122,8 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
       return { 
         success: false, 
         msg: "GIÀ ENTRATO ALLE " + oraGiaEntrato,
-        cliente: (prenotazione.cliente_nome + (prenotazione.cliente_cognome ? " " + prenotazione.cliente_cognome : "")).toUpperCase()
+        cliente: (prenotazione.cliente_nome + (prenotazione.cliente_cognome ? " " + prenotazione.cliente_cognome : "")).toUpperCase(),
+        include_pasto: prenotazione.include_pasto || false  // ✅ AGGIUNTO
       };
     }
 
@@ -132,7 +136,8 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
     return { 
       success: true, 
       msg: "INGRESSO OK", 
-      cliente: (prenotazione.cliente_nome + (prenotazione.cliente_cognome ? " " + prenotazione.cliente_cognome : "")).toUpperCase()
+      cliente: (prenotazione.cliente_nome + (prenotazione.cliente_cognome ? " " + prenotazione.cliente_cognome : "")).toUpperCase(),
+      include_pasto: prenotazione.include_pasto || false  // ✅ AGGIUNTO
     };
 
   } catch (e) {

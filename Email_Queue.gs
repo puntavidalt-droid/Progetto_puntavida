@@ -1,6 +1,6 @@
 /**
  * EMAIL_QUEUE.GS
- * Sistema coda email asincrono con retry
+ * Sistema coda email asincrono con retry (CON SUPPORTO PASTO)
  */
 
 function setupEmailQueue() {
@@ -15,13 +15,14 @@ function setupEmailQueue() {
       'Nome',
       'Evento',
       'QR Token',
+      'Cancel Token',
       'Stato',
       'Tentativi',
       'Ultimo Errore',
       'Inviato Il'
     ]);
     
-    sheet.getRange(1, 1, 1, 9)
+    sheet.getRange(1, 1, 1, 10)
       .setFontWeight('bold')
       .setBackground('#667eea')
       .setFontColor('white');
@@ -64,11 +65,14 @@ function setupTrigger() {
   Logger.log('✅ Trigger configurato: ogni 1 minuti');
 }
 
+/**
+ * Processa coda email (chiamata da trigger ogni minuto)
+ */
 function processaCodeEmail() {
   const startTime = Date.now();
   
   try {
-    const config = getConfig();
+    const config = getConfig();  // ✅ Questo OK - è per EMAIL_QUEUE_SHEET_ID
     const emailQueueSheetId = config.EMAIL_QUEUE_SHEET_ID;
     
     if (!emailQueueSheetId) {
@@ -91,33 +95,56 @@ function processaCodeEmail() {
     
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      const stato = row[5];
-      const tentativi = row[6] || 0;
+      const stato = row[6];
+      const tentativi = row[7] || 0;
       
       if (stato === 'PENDING' && tentativi < 3) {
         processed++;
         
         const email = row[1];
         const nome = row[2];
-        const nomeEvento = row[3];
         const qrToken = row[4];
+        const cancelToken = row[5];
         
         try {
-          inviaEmailConQR(email, nome, nomeEvento, qrToken);
+          // Recupera dati completi
+          const prenotazione = dbGetPrenotazioneDaToken(qrToken);
           
-          sheet.getRange(i + 1, 6).setValue('SENT');
-          sheet.getRange(i + 1, 7).setValue(tentativi + 1);
-          sheet.getRange(i + 1, 9).setValue(new Date());
+          if (!prenotazione) {
+            throw new Error('Prenotazione non trovata');
+          }
+          
+          const evento = dbGetEventoInfoById(prenotazione.evento_id);
+          
+          if (!evento) {
+            throw new Error('Evento non trovato');
+          }
+          
+          // Invia email
+          inviaEmailConQR(
+            email, 
+            nome, 
+            evento.nome_evento,
+            qrToken,
+            cancelToken,
+            evento,
+            prenotazione.include_pasto
+          );
+          
+          // Marca come inviata
+          sheet.getRange(i + 1, 7).setValue('SENT');
+          sheet.getRange(i + 1, 8).setValue(tentativi + 1);
+          sheet.getRange(i + 1, 10).setValue(new Date());
           
           sent++;
-          Logger.log('✅ Email inviata a ' + email);
+          Logger.log('✅ Email coda inviata a ' + email);
           
         } catch (emailError) {
-          sheet.getRange(i + 1, 7).setValue(tentativi + 1);
-          sheet.getRange(i + 1, 8).setValue(emailError.message);
+          sheet.getRange(i + 1, 8).setValue(tentativi + 1);
+          sheet.getRange(i + 1, 9).setValue(emailError.message);
           
           if (tentativi + 1 >= 3) {
-            sheet.getRange(i + 1, 6).setValue('FAILED');
+            sheet.getRange(i + 1, 7).setValue('FAILED');
             failed++;
             Logger.log('❌ Email fallita dopo 3 tentativi: ' + email);
           } else {
@@ -139,14 +166,29 @@ function processaCodeEmail() {
   }
 }
 
+/**
+ * Accoda invio email per retry
+ */
 function accodaInvioEmail(dati) {
   try {
-    const config = getConfig();
+    const config = getConfig();  // ✅ Questo OK - è per EMAIL_QUEUE_SHEET_ID
     const emailQueueSheetId = config.EMAIL_QUEUE_SHEET_ID;
     
     if (!emailQueueSheetId) {
       Logger.log('⚠️ Coda non configurata, invio immediato');
-      inviaEmailConQR(dati.email, dati.nome, dati.nomeEvento, dati.qrToken);
+      
+      const prenotazione = dbGetPrenotazioneDaToken(dati.qrToken);
+      const evento = dbGetEventoInfoById(prenotazione.evento_id);
+      
+      inviaEmailConQR(
+        dati.email, 
+        dati.nome, 
+        evento.nome_evento,
+        dati.qrToken,
+        dati.cancelToken || prenotazione.cancel_token,
+        evento,
+        prenotazione.include_pasto
+      );
       return;
     }
     
@@ -156,7 +198,7 @@ function accodaInvioEmail(dati) {
     if (!sheet) {
       sheet = ss.insertSheet('EmailQueue');
       sheet.appendRow([
-        'Timestamp', 'Email', 'Nome', 'Evento', 'QR Token', 
+        'Timestamp', 'Email', 'Nome', 'Evento', 'QR Token', 'Cancel Token',
         'Stato', 'Tentativi', 'Ultimo Errore', 'Inviato Il'
       ]);
     }
@@ -167,6 +209,7 @@ function accodaInvioEmail(dati) {
       dati.nome,
       dati.nomeEvento,
       dati.qrToken,
+      dati.cancelToken,
       'PENDING',
       0,
       '',
@@ -177,10 +220,22 @@ function accodaInvioEmail(dati) {
     
   } catch (e) {
     Logger.log('❌ Errore accodamento: ' + e.message);
+    
     try {
-      inviaEmailConQR(dati.email, dati.nome, dati.nomeEvento, dati.qrToken);
+      const prenotazione = dbGetPrenotazioneDaToken(dati.qrToken);
+      const evento = dbGetEventoInfoById(prenotazione.evento_id);
+      
+      inviaEmailConQR(
+        dati.email, 
+        dati.nome, 
+        evento.nome_evento,
+        dati.qrToken,
+        dati.cancelToken || prenotazione.cancel_token,
+        evento,
+        prenotazione.include_pasto
+      );
     } catch (fallbackError) {
-      Logger.log('❌ Anche fallback fallito');
+      Logger.log('❌ Anche fallback fallito: ' + fallbackError.message);
     }
   }
 }
@@ -206,7 +261,7 @@ function getStatisticheCoda() {
     };
     
     for (let i = 1; i < data.length; i++) {
-      const stato = data[i][5];
+      const stato = data[i][6];
       if (stato === 'PENDING') stats.pending++;
       else if (stato === 'SENT') stats.sent++;
       else if (stato === 'FAILED') stats.failed++;
@@ -233,7 +288,8 @@ function testEmailQueue() {
     email: 'test@example.com',
     nome: 'Test',
     nomeEvento: 'Evento Test',
-    qrToken: 'TEST-' + Utilities.getUuid()
+    qrToken: 'TEST-' + Utilities.getUuid(),
+    cancelToken: 'CANCEL-' + Utilities.getUuid()
   });
   
   Logger.log('Test accodamento completato');

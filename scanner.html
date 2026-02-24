@@ -45,6 +45,20 @@
       border-radius: 20px;
       border: 1px solid #333;
     }
+    
+    /* ✅ AGGIUNTO: Badge pasto */
+    .badge-pasto {
+      display: inline-block;
+      background: rgba(255, 193, 7, 0.2);
+      border: 2px solid #FFC107;
+      border-radius: 12px;
+      padding: 8px 16px;
+      margin-top: 15px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #FFC107;
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 <body id="main-body">
@@ -73,8 +87,12 @@
       <div id="result-box" class="d-none status-card">
         <h1 id="res-title" class="display-4 fw-bold mb-2"></h1>
         <p id="res-name" class="display-6 mb-1"></p>
-        <p id="res-info" class="fs-5 opacity-75 mb-4"></p>
-        <button class="btn-registrazione" onclick="resetScanner()">PROSSIMO CLIENTE</button>
+        <p id="res-info" class="fs-5 opacity-75 mb-2"></p>
+        <!-- ✅ AGGIUNTO: Badge pasto -->
+        <div id="res-pasto-badge" class="d-none">
+          <span class="badge-pasto">🍽️ CON PASTO</span>
+        </div>
+        <button class="btn-registrazione mt-4" onclick="resetScanner()">PROSSIMO CLIENTE</button>
       </div>
 
       <div id="loading-scanner" class="d-none my-4">

@@ -1,6 +1,7 @@
 /**
- * LOGIC_REGISTRAZIONE.GS - Versione con Sistema Annullamento
+ * LOGIC_REGISTRAZIONE.GS - Versione con Gestione Pasto
  * Performance migliorate, race condition eliminata, riattivazione automatica
+ * MODIFICHE: Aggiunto supporto pranzo/cena mantenendo logica esistente
  */
 
 function renderRegistrazione(e) {
@@ -55,7 +56,12 @@ function renderRegistrazione(e) {
                 (nPrenotati >= evento.max_partecipanti) ? "SOLDOUT" : "APERTO";
 
   const template = HtmlService.createTemplateFromFile('registrazione');
+  
+  // ═══════════════════════════════════════════════════════════════
+  // OGGETTO eventoInfo - MODIFICATO per includere campi pasto
+  // ═══════════════════════════════════════════════════════════════
   template.eventoInfo = {
+    // Campi originali
     id: evento.id,
     nome: evento.nome_evento,
     codice: codiceEvento,
@@ -63,8 +69,22 @@ function renderRegistrazione(e) {
     logoUrl: dbGetLogoUrl(),
     dataEvento: evento.data_evento,
     maxPartecipanti: evento.max_partecipanti,
-    postiDisponibili: Math.max(0, evento.max_partecipanti - nPrenotati)
+    postiDisponibili: Math.max(0, evento.max_partecipanti - nPrenotati),
+    
+    // ═══════════════════════════════════════════════════════════════
+    // CAMPI PASTO AGGIUNTI (nuovi)
+    // ═══════════════════════════════════════════════════════════════
+    tipo_evento: evento.tipo_evento || 'SOLO_DANZA',
+    pasto_obbligatorio: evento.pasto_obbligatorio || false,
+    prezzo_solo_danza: evento.prezzo_solo_danza || null,
+    prezzo_con_pasto: evento.prezzo_con_pasto || null,
+    max_partecipanti_pasto: evento.max_partecipanti_pasto || null,
+    fine_prenotazione_pasto: evento.fine_prenotazione_pasto || null,
+    messaggio_post_registrazione: evento.messaggio_post_registrazione || null,
+    visualizza_prezzo_danza: evento.visualizza_prezzo_danza || false,
+    messaggio_prezzo_danza: evento.messaggio_prezzo_danza || null
   };
+  
   template.prNickname = nicknamePR;
 
   return template.evaluate()
@@ -77,6 +97,10 @@ function salvaPrenotazione(payload) {
   const startTime = Date.now();
   
   try {
+    // ═══════════════════════════════════════════════════════════════
+    // VALIDAZIONI BASE
+    // ═══════════════════════════════════════════════════════════════
+    
     // VALIDAZIONE EMAIL
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!payload.email || !emailRegex.test(payload.email)) {
@@ -94,7 +118,10 @@ function salvaPrenotazione(payload) {
       };
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // RECUPERO EVENTO
+    // ═══════════════════════════════════════════════════════════════
+    
     const evento = dbGetEventoInfo(payload.evento);
     if (!evento) {
       return { 
@@ -103,7 +130,10 @@ function salvaPrenotazione(payload) {
       };
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // CONTROLLO ORARIO
+    // ═══════════════════════════════════════════════════════════════
+    
     const oraAttuale = new Date();
     const finePrenotazione = new Date(evento.fine_prenotazione);
     
@@ -112,6 +142,51 @@ function salvaPrenotazione(payload) {
         success: false, 
         msg: "Spiacenti, le prenotazioni per questo evento sono chiuse." 
       };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LOGICA GESTIONE PASTO (NUOVA)
+    // ═══════════════════════════════════════════════════════════════
+    
+    let includePasto = false;
+    
+    if (evento.tipo_evento !== 'SOLO_DANZA') {
+      
+      if (evento.pasto_obbligatorio) {
+        // Pasto OBBLIGATORIO - tutti devono averlo
+        includePasto = true;
+        
+      } else if (payload.include_pasto) {
+        // Pasto FACOLTATIVO - cliente ha scelto di aggiungerlo
+        
+        // Check 1: Deadline pasto
+        if (evento.fine_prenotazione_pasto) {
+          const finePrenotazionePasto = new Date(evento.fine_prenotazione_pasto);
+          
+          if (oraAttuale > finePrenotazionePasto) {
+            return {
+              success: false,
+              msg: "Le prenotazioni per la cena sono chiuse. Vuoi registrarti solo per la serata danzante?",
+              alternativa: 'SOLO_DANZA'
+            };
+          }
+        }
+        
+        // Check 2: Posti pasto disponibili (LIVE)
+        if (evento.max_partecipanti_pasto) {
+          const stats = dbGetStatistichePostiLive(evento.id);
+          
+          if (stats.conPasto >= evento.max_partecipanti_pasto) {
+            return {
+              success: false,
+              msg: "I posti per la cena sono esauriti. Vuoi registrarti solo per la serata danzante?",
+              alternativa: 'SOLO_DANZA'
+            };
+          }
+        }
+        
+        includePasto = true;
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -128,6 +203,8 @@ function salvaPrenotazione(payload) {
         
         // Mantiene lo stesso QR code originale (evita confusione con vecchi screenshot)
         const qrTokenOriginale = prenotazioneEsistente.qr_token;
+        const cancelTokenOriginale = prenotazioneEsistente.cancel_token || Utilities.getUuid();
+        
         const riattivata = dbRiattivaPrenotazione(prenotazioneEsistente.id, qrTokenOriginale);
         
         if (!riattivata) {
@@ -137,14 +214,16 @@ function salvaPrenotazione(payload) {
           };
         }
         
-        // Reinvia email con lo stesso QR code
+        // Reinvia email con lo stesso QR code + parametri pasto
         try {
           inviaEmailConQR(
             emailPulita, 
             payload.nome, 
             evento.nome_evento, 
-            qrTokenOriginale,  // ← Stesso QR code di prima
-            prenotazioneEsistente.cancel_token || Utilities.getUuid()
+            qrTokenOriginale,      // ← Stesso QR code di prima
+            cancelTokenOriginale,
+            evento,                 // ← AGGIUNTO per pasto
+            includePasto            // ← AGGIUNTO per pasto
           );
           Logger.log('✅ Email riattivazione inviata a: ' + emailPulita);
         } catch (emailError) {
@@ -156,7 +235,7 @@ function salvaPrenotazione(payload) {
               nome: payload.nome,
               nomeEvento: evento.nome_evento,
               qrToken: qrTokenOriginale,  // ← Stesso QR code di prima
-              cancelToken: prenotazioneEsistente.cancel_token
+              cancelToken: cancelTokenOriginale
             });
           } catch (queueError) {
             Logger.log('❌ Accodamento fallito: ' + queueError.message);
@@ -170,6 +249,7 @@ function salvaPrenotazione(payload) {
           success: true,
           token: qrTokenOriginale,  // ← Stesso QR code di prima
           message: "🎉 Prenotazione riattivata! Ti abbiamo reinviato il tuo QR code via email. Check anche lo spam! 📱",
+          messaggio_custom: evento.messaggio_post_registrazione,  // ← AGGIUNTO
           executionTime: executionTime
         };
       }
@@ -204,14 +284,18 @@ function salvaPrenotazione(payload) {
       evento_id: evento.id,
       pr_id: prId,
       qr_token: qrToken,
-      cancel_token: cancelToken,  // ← AGGIUNTO
+      cancel_token: cancelToken,
       codice_evento: evento.codice_evento,
       nickname_pr: payload.pr || 'Generico',
-      stato: 'ATTIVA',            // ← AGGIUNTO
-       created_at: getTimestampLocale()  // ← CORRETTO: ora locale
+      stato: 'ATTIVA',
+      created_at: getTimestampLocale(),
+      include_pasto: includePasto  // ← CAMPO NUOVO
     };
 
+    // ═══════════════════════════════════════════════════════════════
     // CONTROLLO POSTI DISPONIBILI (prima di inserire)
+    // ═══════════════════════════════════════════════════════════════
+    
     const nPrenotati = dbGetConteggioPrenotazioni(evento.id);
     if (nPrenotati >= evento.max_partecipanti) {
       return { 
@@ -220,7 +304,10 @@ function salvaPrenotazione(payload) {
       };
     }
 
+    // ═══════════════════════════════════════════════════════════════
     // INSERIMENTO DATABASE
+    // ═══════════════════════════════════════════════════════════════
+    
     try {
       const inserted = dbInsertPrenotazione(record);
       
@@ -267,8 +354,16 @@ function salvaPrenotazione(payload) {
     // ═══════════════════════════════════════════════════════════════
     
     try {
-      // Tentativo di invio immediato (con cancel_token per link annullamento)
-      inviaEmailConQR(emailPulita, payload.nome, evento.nome_evento, qrToken, cancelToken);
+      // Tentativo di invio immediato (con parametri pasto)
+      inviaEmailConQR(
+        emailPulita, 
+        payload.nome, 
+        evento.nome_evento, 
+        qrToken, 
+        cancelToken,
+        evento,          // ← AGGIUNTO per pasto
+        includePasto     // ← AGGIUNTO per pasto
+      );
       Logger.log('✅ Email inviata immediatamente a: ' + emailPulita);
     } catch (emailError) {
       // Se invio immediato fallisce, mette in coda per retry automatico
@@ -279,7 +374,7 @@ function salvaPrenotazione(payload) {
           nome: payload.nome,
           nomeEvento: evento.nome_evento,
           qrToken: qrToken,
-          cancelToken: cancelToken  // ← AGGIUNTO
+          cancelToken: cancelToken
         });
         Logger.log('📧 Email accodata per retry automatico');
       } catch (queueError) {
@@ -295,11 +390,13 @@ function salvaPrenotazione(payload) {
       success: true, 
       token: qrToken,
       message: "🔥 Sei dentro! Ti mandiamo l'email con il QR tra 1-2 min. Check anche lo spam! 📱",
+      messaggio_custom: evento.messaggio_post_registrazione,  // ← AGGIUNTO
       executionTime: executionTime
     };
 
   } catch (e) {
     Logger.log('❌ Errore generale salvaPrenotazione: ' + e.message);
+    Logger.log(e.stack);
     
     return { 
       success: false, 
@@ -361,10 +458,10 @@ function testRiattivazioneDebug() {
   
   Logger.log('=========================');
 }
+
 /**
  * ═══════════════════════════════════════════════════════════════
- * AGGIUNGI QUESTA FUNZIONE IN FONDO A Logic_Registrazione.gs
- * (Duplica quella in Database.gs per comodità)
+ * Utility timestamp locale (duplicata da Database.gs per comodità)
  * ═══════════════════════════════════════════════════════════════
  */
 function getTimestampLocale() {
