@@ -3,19 +3,36 @@
  * Coordina le operazioni CRUD per la tabella eventi con logica di business.
  * ✅ TIMESTAMP ORA LOCALE: Date salvate in formato ora italiana
  * ✅ INTEGRAZIONE PASTO: Gestisce campi pranzo/cena
+ * ✅ CONTEGGI SEPARATI: party vs pasto per card dashboard
  */
 
 /**
  * 1. Recupera la lista di tutti gli eventi
+ * MODIFICATO: aggiunge conteggio_party e conteggio_pasto per eventi con pasto
  */
 function getListaEventi() {
   try {
     const eventi = dbGetAllEventi();
     
-    // Per ogni evento, arricchiamo i dati con i conteggi reali
     return eventi.map(evt => {
+      // *** OLD: invariato ***
       evt.conteggio = dbGetConteggioPrenotazioni(evt.id); 
       evt.checkin_effettuati = dbGetConteggioCheckin(evt.id);
+      
+      // ═══════════════════════════════════════════════════════════════
+      // NUOVO: conteggi separati party/pasto
+      // Per SOLO_DANZA: party = tutto, pasto = 0
+      // Per eventi con pasto: usa dbGetStatistichePostiLive()
+      // ═══════════════════════════════════════════════════════════════
+      if (evt.tipo_evento && evt.tipo_evento !== 'SOLO_DANZA') {
+        const stats = dbGetStatistichePostiLive(evt.id);
+        evt.conteggio_party = stats.soloDanza || 0;
+        evt.conteggio_pasto = stats.conPasto || 0;
+      } else {
+        evt.conteggio_party = evt.conteggio;
+        evt.conteggio_pasto = 0;
+      }
+      
       return evt;
     });
   } catch (e) {
@@ -26,11 +43,10 @@ function getListaEventi() {
 
 /**
  * 2. Gestisce il salvataggio (Nuovo o Modifica)
- * @param {Object} payload - Dati provenienti dal form HTML
+ * *** OLD: invariato ***
  */
 function salvaEvento(payload) {
   try {
-    // Prepariamo l'oggetto pulito per Supabase
     const record = {
       codice_evento: payload.codice_evento.trim().toUpperCase(),
       nome_evento: payload.nome_evento,
@@ -38,18 +54,12 @@ function salvaEvento(payload) {
       attivo: payload.attivo === "true" || payload.attivo === true,
       max_partecipanti: parseInt(payload.max_partecipanti) || 0,
       
-      // ═══════════════════════════════════════════════════════════════
-      // TIMESTAMP ORA LOCALE: Formato per Supabase mantenendo ora italiana
-      // ═══════════════════════════════════════════════════════════════
       fine_prenotazione: convertiDataLocalePerSupabase(payload.fine_prenotazione),
       inizio_checkin: convertiDataLocalePerSupabase(payload.inizio_checkin),
       fine_checkin: convertiDataLocalePerSupabase(payload.fine_checkin),
       
       descrizione: payload.descrizione || "",
       
-      // ═══════════════════════════════════════════════════════════════
-      // CAMPI PASTO - NUOVI
-      // ═══════════════════════════════════════════════════════════════
       tipo_evento: payload.tipo_evento || 'SOLO_DANZA',
       pasto_obbligatorio: payload.pasto_obbligatorio === "true" || payload.pasto_obbligatorio === true,
       prezzo_solo_danza: payload.prezzo_solo_danza ? parseFloat(payload.prezzo_solo_danza) : null,
@@ -57,12 +67,10 @@ function salvaEvento(payload) {
       visualizza_prezzo_danza: payload.visualizza_prezzo_danza === "true" || payload.visualizza_prezzo_danza === true,
       max_partecipanti_pasto: payload.max_partecipanti_pasto ? parseInt(payload.max_partecipanti_pasto) : null,
       
-      // Timestamp pasto (conversione come gli altri)
       fine_prenotazione_pasto: convertiDataLocalePerSupabase(payload.fine_prenotazione_pasto),
       inizio_checkin_pasto: convertiDataLocalePerSupabase(payload.inizio_checkin_pasto),
       fine_checkin_pasto: convertiDataLocalePerSupabase(payload.fine_checkin_pasto),
       
-      // Messaggi testuali
       messaggio_post_registrazione: payload.messaggio_post_registrazione || null,
       messaggio_prezzo_danza: payload.messaggio_prezzo_danza || null
     };
@@ -70,10 +78,8 @@ function salvaEvento(payload) {
     let result;
     
     if (payload.id) {
-      // Caso: MODIFICA
       result = dbUpdateEvento(payload.id, record);
     } else {
-      // Caso: NUOVO
       result = dbInsertEvento(record);
     }
 
@@ -91,25 +97,19 @@ function salvaEvento(payload) {
 
 /**
  * Converte datetime-local HTML in formato timestamp ora locale per Supabase
- * Input: "2026-02-19T09:03" (dal form HTML, ora locale)
- * Output: "2026-02-19 09:03:00" (formato Supabase, STESSA ora locale)
- * 
- * IMPORTANTE: Non converte in UTC, mantiene l'ora italiana
+ * *** OLD: invariato ***
  */
 function convertiDataLocalePerSupabase(dataHtml) {
   if (!dataHtml) return null;
   
   try {
-    // Il form HTML restituisce: "2026-02-19T09:03"
     const data = new Date(dataHtml);
     
-    // Verifica validità
     if (isNaN(data.getTime())) {
       Logger.log('⚠️ Data non valida: ' + dataHtml);
       return null;
     }
     
-    // Estrai componenti in ora LOCALE (non UTC)
     const year = data.getFullYear();
     const month = String(data.getMonth() + 1).padStart(2, '0');
     const day = String(data.getDate()).padStart(2, '0');
@@ -117,10 +117,7 @@ function convertiDataLocalePerSupabase(dataHtml) {
     const minutes = String(data.getMinutes()).padStart(2, '0');
     const seconds = String(data.getSeconds()).padStart(2, '0');
     
-    // Formato: "YYYY-MM-DD HH:MM:SS" (ora locale)
-    const timestampLocale = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    
-    return timestampLocale;
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     
   } catch (e) {
     Logger.log('Errore conversione data: ' + e.message);
@@ -130,6 +127,7 @@ function convertiDataLocalePerSupabase(dataHtml) {
 
 /**
  * 3. Elimina un evento con controllo di sicurezza (Safe Mode)
+ * *** OLD: invariato ***
  */
 function eliminaEvento(id, codice) {
   try {
@@ -158,6 +156,7 @@ function eliminaEvento(id, codice) {
 
 /**
  * TEST: Verifica conversione timestamp ora locale
+ * *** OLD: invariato ***
  */
 function testConversioneTimestampLocale() {
   Logger.log("=== TEST CONVERSIONE ORA LOCALE ===");
@@ -186,6 +185,7 @@ function testConversioneTimestampLocale() {
 
 /**
  * TEST: Verifica salvataggio evento con pasto
+ * *** OLD: invariato ***
  */
 function testSalvaEventoConPasto() {
   Logger.log("=== TEST SALVATAGGIO EVENTO CON PASTO ===");
@@ -200,7 +200,6 @@ function testSalvaEventoConPasto() {
     inizio_checkin: "2026-04-15T11:00",
     fine_checkin: "2026-04-15T18:00",
     
-    // Campi pasto
     tipo_evento: "CON_PRANZO",
     pasto_obbligatorio: false,
     prezzo_solo_danza: 20.00,

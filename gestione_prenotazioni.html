@@ -10,6 +10,7 @@
 
 <div class="container-fluid py-3" id="modulo-gestione">
   <!-- Filtri Principali -->
+  <!-- *** OLD: invariato *** -->
   <div class="card bg-dark border-secondary shadow-sm mb-3">
     <div class="card-body">
       <div class="row g-3 align-items-end">
@@ -27,7 +28,6 @@
           </select>
         </div>
 
-        <!-- NUOVA: Ricerca Cliente -->
         <div class="col-12 col-md-3">
           <label class="small opacity-50 text-uppercase fw-bold mb-1 d-block text-warning">
             <i class="bi bi-search"></i> Cerca Cliente
@@ -77,11 +77,10 @@
 </div>
 
 <style>
-  /* Personalizzazione righe */
+  /* *** OLD: invariato *** */
   .riga-entrato { border-left: 4px solid #1db954 !important; background-color: rgba(29, 185, 84, 0.05) !important; }
   .riga-annullata { border-left: 4px solid #dc3545 !important; background-color: rgba(220, 53, 69, 0.03) !important; opacity: 0.6; }
   
-  /* Select e Input */
   .form-select, .form-control { 
     background-color: #000 !important; 
     color: #fff !important; 
@@ -92,7 +91,6 @@
     box-shadow: none !important; 
   }
 
-  /* Bottoni PuntaVida Style */
   #modulo-gestione .btn-outline-success, 
   #modulo-gestione .btn-secondary,
   #modulo-gestione .btn-dark {
@@ -111,7 +109,6 @@
     color: #000 !important;
   }
 
-  /* Tasti Azione Specifici */
   .btn-outline-warning { color: #ffc107 !important; border-color: #ffc107 !important; }
   .btn-outline-warning:hover { background: #ffc107 !important; color: #000 !important; }
   .btn-outline-danger { color: #dc3545 !important; border-color: #dc3545 !important; }
@@ -119,7 +116,6 @@
   .btn-outline-primary { color: #007bff !important; border-color: #007bff !important; }
   .btn-outline-primary:hover { background: #007bff !important; color: #fff !important; }
 
-  /* Badge personalizzati */
   .badge { 
     padding: 5px 12px; 
     border-radius: 12px; 
@@ -144,28 +140,63 @@
     border: 1px solid rgba(255, 193, 7, 0.3); 
   }
 
-  /* Evidenzia match ricerca */
   .highlight-search {
     background-color: rgba(255, 193, 7, 0.3) !important;
     font-weight: bold;
   }
+
+  /* ═══════════════════════════════════════════════════════════════ */
+  /* NUOVO: Badge pasto inline nella colonna stato                  */
+  /* ═══════════════════════════════════════════════════════════════ */
+  .badge-pasto-inline {
+    display: inline-block;
+    background: rgba(255, 193, 7, 0.15);
+    color: #FFC107;
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    border-radius: 10px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* NUOVO: Bottone toggle pasto */
+  .btn-outline-pasto { 
+    color: #FFC107 !important; 
+    border-color: #FFC107 !important; 
+  }
+  .btn-outline-pasto:hover { 
+    background: #FFC107 !important; 
+    color: #000 !important; 
+  }
 </style>
 
 <script>
+  // ═══════════════════════════════════════════════════════════════
   // 1. Variabili Globali di Stato
+  // MODIFICATO: aggiunto G_EVENTO_INFO per dati evento completi
+  // ═══════════════════════════════════════════════════════════════
   let G_EVENTO_ID = window.filtroGestioneEvento || window.eventoSelezionatoManualmente || null;
   let G_PR_NICK = window.filtroGestionePR || "ALL";
-  let G_SEARCH_QUERY = ""; // Nuova: ricerca cliente
+  let G_SEARCH_QUERY = "";
   let DATI_LOCALI = [];
   let CHECK_IN_APERTO_SERVER = false;
+  let G_EVENTO_INFO = null;  // NUOVO: oggetto evento completo per tipo_evento, fine_prenotazione_pasto
+  let G_SCROLL_POS = 0;      // NUOVO: posizione scroll da ripristinare
 
-  // 2. Inizializzazione
+  // *** OLD: invariato ***
   function inizializzaGestione() {
     caricaDatiGestione();
   }
 
   // 3. Caricamento Dati dal Server
+  // MODIFICATO: salva G_EVENTO_INFO + salva scroll position
   function caricaDatiGestione() {
+    // NUOVO: salva posizione scroll prima del reload
+    const scrollContainer = document.querySelector('#modulo-gestione .table-responsive');
+    if (scrollContainer) G_SCROLL_POS = scrollContainer.scrollTop;
+    
     const corpo = document.getElementById('corpo-tabella-gestione');
     if (corpo) corpo.innerHTML = '<tr><td colspan="4" class="text-center py-5"><div class="spinner-border text-success"></div></td></tr>';
     
@@ -175,30 +206,33 @@
         
         DATI_LOCALI = res.prenotazioni || [];
         CHECK_IN_APERTO_SERVER = res.checkInAperto;
+        G_EVENTO_INFO = res.evento || null;  // NUOVO: salvo evento completo
         
         if (!G_EVENTO_ID) G_EVENTO_ID = res.idSelezionato;
 
         popolaSelettori(res.listaEventi || [], res.listaPR || []);
         renderizzaTabellaGestione();
         
-        // Pulizia filtri globali dopo il primo utilizzo
         window.filtroGestionePR = null;
         window.filtroGestioneEvento = null;
       })
       .getDatiGestionePrenotazioni(G_EVENTO_ID);
   }
 
+  // ═══════════════════════════════════════════════════════════════
   // 4. Rendering Tabella con Filtri
+  // MODIFICATO: badge pasto, bottone toggle pasto, info pasto nel check-in
+  // ═══════════════════════════════════════════════════════════════
   function renderizzaTabellaGestione() {
     const corpo = document.getElementById('corpo-tabella-gestione');
     if (!corpo) return;
 
-    // Filtro PR
+    // *** OLD: invariato — Filtro PR ***
     let filtrati = (G_PR_NICK === "ALL") 
       ? DATI_LOCALI 
       : DATI_LOCALI.filter(p => p.pr_nickname && p.pr_nickname.toLowerCase().trim() === G_PR_NICK.toLowerCase().trim());
 
-    // Filtro Ricerca Cliente (nome o email)
+    // *** OLD: invariato — Filtro Ricerca Cliente ***
     if (G_SEARCH_QUERY) {
       const query = G_SEARCH_QUERY.toLowerCase().trim();
       filtrati = filtrati.filter(p => {
@@ -213,12 +247,33 @@
       return;
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // NUOVO: Ordinamento alfabetico per cognome + nome
+    // ═══════════════════════════════════════════════════════════════
+    filtrati.sort((a, b) => {
+      const cognomeA = (a.cliente_cognome || '').toLowerCase().trim();
+      const cognomeB = (b.cliente_cognome || '').toLowerCase().trim();
+      if (cognomeA !== cognomeB) return cognomeA.localeCompare(cognomeB, 'it');
+      const nomeA = (a.cliente_nome || '').toLowerCase().trim();
+      const nomeB = (b.cliente_nome || '').toLowerCase().trim();
+      return nomeA.localeCompare(nomeB, 'it');
+    });
+
+    // NUOVO: determina se l'evento ha pasto (per mostrare/nascondere bottone toggle)
+    const eventoHaPasto = G_EVENTO_INFO && G_EVENTO_INFO.tipo_evento && G_EVENTO_INFO.tipo_evento !== 'SOLO_DANZA';
+
     corpo.innerHTML = filtrati.map(p => {
       const entrato = (p.entrato === true || String(p.entrato) === "true");
       const annullata = (p.stato === 'ANNULLATA');
+      const haPasto = (p.include_pasto === true || String(p.include_pasto) === "true");
       
-      // Determina badge stato
+      // ═══════════════════════════════════════════════════════════════
+      // Badge stato + badge pasto inline
+      // MODIFICATO: aggiunto simbolo 🍽️ accanto allo stato se include_pasto
+      // ═══════════════════════════════════════════════════════════════
       let badgeStato = '';
+      const badgePasto = haPasto ? '<span class="badge-pasto-inline">🍽️ Pasto</span>' : '';
+      
       if (annullata) {
         badgeStato = '<span class="badge badge-danger-custom">✗ ANNULLATA</span>';
       } else if (entrato) {
@@ -227,33 +282,48 @@
         badgeStato = '<span class="badge badge-warning-custom">⏳ ATTESA</span>';
       }
       
-      // Evidenzia match ricerca
+      const highlightClass = G_SEARCH_QUERY ? 'highlight-search' : '';
       const nomeCompleto = `${p.cliente_nome} ${p.cliente_cognome || ''}`;
       const emailCliente = p.cliente_email || '';
-      const highlightClass = G_SEARCH_QUERY ? 'highlight-search' : '';
       
+      // ═══════════════════════════════════════════════════════════════
       // Bottone Check-in
+      // MODIFICATO: passa haPasto alla funzione eseguiCheckIn
+      // ═══════════════════════════════════════════════════════════════
       let htmlAzioneCheckIn = "";
       if (annullata) {
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-dark disabled" title="Prenotazione annullata"><i class="bi bi-x-circle opacity-25"></i></button>`;
       } else if (entrato) {
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-success disabled" style="background:#1db954 !important; border:none;"><i class="bi bi-check-lg text-black"></i></button>`;
       } else if (CHECK_IN_APERTO_SERVER) {
-        // Passa ID e NOME per conferma dettagliata
-        htmlAzioneCheckIn = `<button class="btn btn-sm btn-outline-success" onclick="eseguiCheckIn('${p.id}', '${nomeCompleto.replace(/'/g, "\\'")}', '${emailCliente}')" title="Check-in Manuale"><i class="bi bi-person-check"></i></button>`;
+        htmlAzioneCheckIn = `<button class="btn btn-sm btn-outline-success" onclick="eseguiCheckIn('${p.id}', '${nomeCompleto.replace(/'/g, "\\'")}', '${emailCliente}', ${haPasto})" title="Check-in Manuale"><i class="bi bi-person-check"></i></button>`;
       } else {
         htmlAzioneCheckIn = `<button class="btn btn-sm btn-dark disabled" title="Check-in non ancora aperto"><i class="bi bi-lock-fill opacity-25"></i></button>`;
       }
 
-      // Bottone Reinvia QR
+      // *** OLD: invariato — Bottone Reinvia QR ***
       const btnReinvia = annullata 
         ? `<button class="btn btn-sm btn-dark disabled ms-1" title="Non disponibile"><i class="bi bi-envelope opacity-25"></i></button>`
         : `<button class="btn btn-sm btn-outline-warning ms-1" onclick="reinviaQR('${p.id}')" title="Reinvia QR"><i class="bi bi-envelope"></i></button>`;
 
-      // Bottone Annulla/Riattiva
+      // *** OLD: invariato — Bottone Annulla/Riattiva ***
       const btnAzione = annullata
         ? `<button class="btn btn-sm btn-outline-primary ms-1" onclick="riattivaPrenotazione('${p.id}')" title="Riattiva Prenotazione"><i class="bi bi-arrow-clockwise"></i></button>`
         : `<button class="btn btn-sm btn-outline-danger ms-1" onclick="annullaPrenotazione('${p.id}')" title="Annulla"><i class="bi bi-trash"></i></button>`;
+
+      // ═══════════════════════════════════════════════════════════════
+      // NUOVO: Bottone Toggle Pasto (solo per eventi con pasto)
+      // Icona: pieno se ha pasto (rimuovi), vuoto se non ha (aggiungi)
+      // Non mostrato per prenotazioni annullate o già entrate
+      // ═══════════════════════════════════════════════════════════════
+      let btnTogglePasto = '';
+      if (eventoHaPasto && !annullata && !entrato) {
+        if (haPasto) {
+          btnTogglePasto = `<button class="btn btn-sm btn-outline-pasto ms-1" onclick="togglePasto('${p.id}', '${nomeCompleto.replace(/'/g, "\\'")}', true)" title="Rimuovi Pasto"><i class="bi bi-cup-hot-fill"></i></button>`;
+        } else {
+          btnTogglePasto = `<button class="btn btn-sm btn-outline-pasto ms-1" onclick="togglePasto('${p.id}', '${nomeCompleto.replace(/'/g, "\\'")}', false)" title="Aggiungi Pasto"><i class="bi bi-cup-hot"></i></button>`;
+        }
+      }
 
       return `
         <tr class="${annullata ? 'riga-annullata' : (entrato ? 'riga-entrato' : '')}">
@@ -262,27 +332,36 @@
             <div class="small opacity-50">${emailCliente}</div>
           </td>
           <td class="text-success small fw-bold">@${p.pr_nickname}</td>
-          <td class="text-center">${badgeStato}</td>
+          <td class="text-center">${badgeStato}${badgePasto}</td>
           <td class="text-end px-3">
             <div class="btn-group">
               ${htmlAzioneCheckIn}
               ${btnReinvia}
+              ${btnTogglePasto}
               ${btnAzione}
             </div>
           </td>
         </tr>
       `;
     }).join('');
+    
+    // NUOVO: ripristina posizione scroll dopo rendering
+    if (G_SCROLL_POS > 0) {
+      const scrollContainer = document.querySelector('#modulo-gestione .table-responsive');
+      if (scrollContainer) {
+        requestAnimationFrame(() => { scrollContainer.scrollTop = G_SCROLL_POS; });
+      }
+    }
   }
 
-  // 5. Nuova: Filtro Ricerca Cliente
+  // *** OLD: invariato ***
   function filtraRicercaCliente() {
     const input = document.getElementById('search-cliente');
     G_SEARCH_QUERY = input ? input.value : '';
     renderizzaTabellaGestione();
   }
 
-  // 6. Gestione Report Email
+  // *** OLD: invariato ***
   function homeInviaReportAction() {
     if (!G_EVENTO_ID) return;
     
@@ -313,8 +392,22 @@
     }).getEmailPerReport(prSelezionato);
   }
 
+  // ═══════════════════════════════════════════════════════════════
   // 7. Azioni Prenotazione
-  function eseguiCheckIn(id, nomeCliente, emailCliente) {
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Check-in manuale
+   * MODIFICATO: aggiunto parametro haPasto, mostra info pasto nella dialog
+   */
+  function eseguiCheckIn(id, nomeCliente, emailCliente, haPasto) {
+    // NUOVO: sezione info pasto nella dialog
+    const infoPasto = haPasto 
+      ? `<div style="margin-top: 10px; padding: 8px 12px; background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px;">
+           <span style="color: #FFC107; font-weight: bold; font-size: 14px;">🍽️ CON PASTO</span>
+         </div>`
+      : '';
+
     Swal.fire({
       title: 'Check-in Manuale',
       html: `
@@ -328,6 +421,7 @@
           <p style="font-size: 13px; color: #999; margin: 5px 0;">
             ${emailCliente}
           </p>
+          ${infoPasto}
         </div>
         <p style="font-size: 14px; color: #999; margin-top: 15px;">
           Confermi l'ingresso manuale?
@@ -343,7 +437,6 @@
       cancelButtonColor: '#6c757d'
     }).then((result) => {
       if (result.isConfirmed) {
-        // Mostra spinner durante operazione
         Swal.fire({
           title: 'Check-in in corso...',
           allowOutsideClick: false,
@@ -379,6 +472,7 @@
     });
   }
 
+  // *** OLD: invariato ***
   function reinviaQR(id) {
     Swal.fire({
       title: 'Reinviare Email?',
@@ -399,6 +493,7 @@
     });
   }
 
+  // *** OLD: invariato ***
   function annullaPrenotazione(id) {
     Swal.fire({
       title: 'Annullare Prenotazione?',
@@ -442,7 +537,7 @@
     });
   }
 
-  // NUOVA: Riattiva prenotazione annullata
+  // *** OLD: invariato ***
   function riattivaPrenotazione(id) {
     Swal.fire({
       title: 'Riattivare Prenotazione?',
@@ -486,7 +581,97 @@
     });
   }
 
-  // 8. Utility Selettori
+  // ═══════════════════════════════════════════════════════════════
+  // NUOVO: Toggle Pasto Admin
+  // Dialog con avviso se prenotazioni pasto scadute
+  // ═══════════════════════════════════════════════════════════════
+  function togglePasto(id, nomeCliente, haGiaPasto) {
+    const azione = haGiaPasto ? 'Rimuovere' : 'Aggiungere';
+    const nuovoValore = !haGiaPasto;
+    const iconaTitolo = haGiaPasto ? '🍽️ ➜ ✗' : '✗ ➜ 🍽️';
+    
+    // Avviso scadenza: solo quando si AGGIUNGE pasto e la deadline è passata
+    let htmlAvviso = '';
+    if (!haGiaPasto && G_EVENTO_INFO && G_EVENTO_INFO.fine_prenotazione_pasto) {
+      const deadline = new Date(G_EVENTO_INFO.fine_prenotazione_pasto);
+      const ora = new Date();
+      if (ora > deadline) {
+        const dataFormattata = deadline.toLocaleString('it-IT', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        });
+        htmlAvviso = `
+          <div style="margin-top: 12px; padding: 10px 14px; background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.5); border-radius: 8px;">
+            <span style="color: #FFC107; font-size: 13px;">
+              ⚠️ <b>Attenzione:</b> le prenotazioni pasto sono chiuse dal ${dataFormattata}
+            </span>
+          </div>
+        `;
+      }
+    }
+
+    Swal.fire({
+      title: `${iconaTitolo} ${azione} Pasto`,
+      html: `
+        <div style="text-align: left; padding: 15px; background: rgba(255, 193, 7, 0.08); border-radius: 8px; margin-top: 15px;">
+          <p style="color: #FFC107; font-weight: bold; margin-bottom: 10px;">
+            ${azione} il pasto per:
+          </p>
+          <p style="font-size: 16px; font-weight: bold; color: #fff; margin: 5px 0;">
+            ${nomeCliente}
+          </p>
+        </div>
+        ${htmlAvviso}
+        <p style="font-size: 14px; color: #999; margin-top: 15px;">
+          Confermi la modifica?
+        </p>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: haGiaPasto ? 'SÌ, RIMUOVI PASTO' : 'SÌ, AGGIUNGI PASTO',
+      cancelButtonText: 'ANNULLA',
+      background: '#1e1e1e',
+      color: '#fff',
+      confirmButtonColor: '#FFC107',
+      cancelButtonColor: '#6c757d'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: 'Aggiornamento...',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => { Swal.showLoading(); },
+          background: '#1e1e1e',
+          color: '#fff'
+        });
+        
+        google.script.run.withSuccessHandler(successo => {
+          if (successo) {
+            Swal.fire({ 
+              title: haGiaPasto ? 'Pasto Rimosso' : 'Pasto Aggiunto!', 
+              text: nomeCliente,
+              icon: 'success', 
+              background: '#1e1e1e', 
+              color: '#fff', 
+              timer: 2000,
+              showConfirmButton: false 
+            });
+            setTimeout(() => caricaDatiGestione(), 1500);
+          } else {
+            Swal.fire({
+              title: 'Errore',
+              text: 'Impossibile modificare il pasto. Riprova.',
+              icon: 'error',
+              background: '#1e1e1e',
+              color: '#fff'
+            });
+          }
+        }).azioneTogglePasto(id, nuovoValore);
+      }
+    });
+  }
+
+  // *** OLD: invariato ***
   function popolaSelettori(eventi, prs) {
     const selEv = document.getElementById('gestione-select-evento');
     if (selEv) {
@@ -501,9 +686,11 @@
     }
   }
 
+  // *** OLD: invariato (+ reset scroll) ***
   function cambiaFiltriGestione() {
     G_EVENTO_ID = document.getElementById('gestione-select-evento').value;
     G_PR_NICK = document.getElementById('gestione-select-pr').value;
+    G_SCROLL_POS = 0;  // NUOVO: filtro cambiato → torna in cima
     caricaDatiGestione();
   }
 

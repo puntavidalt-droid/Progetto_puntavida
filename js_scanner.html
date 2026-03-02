@@ -1,9 +1,11 @@
 <script>
+// *** OLD: invariato ***
 let html5QrCode;
 let isScanning = true;
 
 /**
  * Inizializza l'oggetto scanner.
+ * *** OLD: invariato ***
  */
 function initScanner() {
   if (html5QrCode) return;
@@ -13,6 +15,7 @@ function initScanner() {
 
 /**
  * Avvia la fotocamera
+ * *** OLD: invariato ***
  */
 function startScanner() {
   const config = { 
@@ -37,19 +40,18 @@ function startScanner() {
 
 /**
  * Gestisce la lettura del QR
+ * *** OLD: invariato ***
  */
 function onScanSuccess(decodedText) {
   if (!isScanning) return; 
   isScanning = false;
   
-  // Feedback immediato: pausa video e nascondi area scan
   html5QrCode.pause(); 
   document.getElementById('reader-container').classList.add('d-none');
   
   const loadingBox = document.getElementById('loading-scanner');
   loadingBox.classList.remove('d-none');
 
-  // Chiamata al server per la convalida (gestisce OK, DOPPIO INGRESSO, ERRATO)
   google.script.run
     .withSuccessHandler(showResult)
     .withFailureHandler(showError)
@@ -58,7 +60,7 @@ function onScanSuccess(decodedText) {
 
 /**
  * Mostra l'esito dello scan (VAI o STOP)
- * ✅ MODIFICATO: Mostra badge pasto se presente
+ * ✅ MODIFICATO: gestisce messaggi pasto/dance + badge + messaggio gentile
  */
 function showResult(res) {
   document.getElementById('loading-scanner').classList.add('d-none');
@@ -66,29 +68,51 @@ function showResult(res) {
   const resTitle = document.getElementById('res-title');
   const resName = document.getElementById('res-name');
   const resInfo = document.getElementById('res-info');
-  const pastoBadge = document.getElementById('res-pasto-badge'); // ✅ AGGIUNTO
+  const pastoBadge = document.getElementById('res-pasto-badge');
   
   box.classList.remove('d-none');
 
   if (res.success) {
-    // --- CASO: INGRESSO VALIDO ---
+    // ═══════════════════════════════════════════════════════════════
+    // CASO: INGRESSO VALIDO
+    // *** OLD: stessa struttura, messaggi ora vengono dal server ***
+    // Il server manda già il messaggio corretto:
+    //   - "DANCE OK" / "DANCE OK (Cena saltata)" / "CENA + DANCE OK"
+    // Quindi il frontend li mostra e basta, senza logica propria
+    // ═══════════════════════════════════════════════════════════════
     resTitle.innerText = "VAI! ✅";
-    resTitle.style.color = "#1db954"; // Verde Spotify
+    resTitle.style.color = "#1db954";
     resName.innerText = res.cliente;
-    resInfo.innerText = res.msg || "INGRESSO AUTORIZZATO";
-    resInfo.classList.replace('text-danger', 'text-white');
-  } else {
-    // --- CASO: ERRORE (GIA' ENTRATO / QR ERRATO / SCADUTO) ---
-    resTitle.innerText = "STOP! ❌";
-    resTitle.style.color = "#ff4444"; // Rosso Errore
-    resName.innerText = res.cliente || "SCONOSCIUTO";
+    resInfo.innerText = res.msg;
+    resInfo.style.color = "#ffffff";
     
-    // Se il messaggio contiene "GIÀ ENTRATO", lo evidenziamo
-    resInfo.innerHTML = `<span style="color: #ff4444;">${res.msg.toUpperCase()}</span>`;
+  } else if (res.nonAncoraOra) {
+    // ═══════════════════════════════════════════════════════════════
+    // NUOVO: Caso speciale — cliente solo-dance in finestra pasto
+    // QR valido, prenotazione attiva, ma non è il suo turno
+    // Messaggio gentile con colore arancione (non rosso errore)
+    // ═══════════════════════════════════════════════════════════════
+    resTitle.innerText = "⏳ NON ANCORA";
+    resTitle.style.color = "#FFC107";  // Arancione/warning, non rosso
+    resName.innerText = res.cliente;
+    resInfo.innerHTML = '<span style="color: #FFC107;">' + res.msg + '</span>';
+    
+  } else {
+    // ═══════════════════════════════════════════════════════════════
+    // CASO: ERRORE (GIA' ENTRATO / QR ERRATO / ANNULLATA / etc.)
+    // *** OLD: invariato ***
+    // ═══════════════════════════════════════════════════════════════
+    resTitle.innerText = "STOP! ❌";
+    resTitle.style.color = "#ff4444";
+    resName.innerText = res.cliente || "SCONOSCIUTO";
+    resInfo.innerHTML = '<span style="color: #ff4444;">' + res.msg.toUpperCase() + '</span>';
     console.warn("Accesso negato:", res.msg);
   }
   
-  // ✅ AGGIUNTO: Mostra badge pasto se include_pasto = true
+  // ═══════════════════════════════════════════════════════════════
+  // NUOVO: Badge pasto — mostra se include_pasto = true
+  // (dalla NEW v10, mantenuto)
+  // ═══════════════════════════════════════════════════════════════
   if (res.include_pasto) {
     pastoBadge.classList.remove('d-none');
   } else {
@@ -98,6 +122,7 @@ function showResult(res) {
 
 /**
  * Gestione errori di rete o crash server
+ * *** OLD: invariato ***
  */
 function showError(err) {
   document.getElementById('loading-scanner').classList.add('d-none');
@@ -112,13 +137,16 @@ function showError(err) {
 
 /**
  * Reset per il prossimo cliente: riaccende la camera
+ * *** OLD: invariato, con aggiunta reset badge ***
  */
 function resetScanner() {
   isScanning = true;
   document.getElementById('result-box').classList.add('d-none');
   document.getElementById('reader-container').classList.remove('d-none');
   
-  // Riprende il video senza ricaricare la pagina
+  // NUOVO: Nascondi badge pasto per il prossimo scan
+  document.getElementById('res-pasto-badge').classList.add('d-none');
+  
   if (html5QrCode) {
     html5QrCode.resume();
   }

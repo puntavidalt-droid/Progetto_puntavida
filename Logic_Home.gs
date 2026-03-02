@@ -63,30 +63,48 @@ function homeReinviaQR(prenotazioneId) {
  * 4. Recupera i dati storici delle prenotazioni per il grafico
  * Ordinati cronologicamente
  */
+/**
+ * 4. Recupera i dati storici per il grafico — 3 serie: party, pasto, totale
+ * MODIFICATO: aggiunto include_pasto nella select per split
+ */
 function homeGetDatiGrafico(eventoId) {
-  if (!eventoId) return { labels: [], values: [] };
+  if (!eventoId) return { labels: [], party: [], pasto: [], totale: [] };
 
   try {
-    const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + "&select=created_at&order=created_at.asc";
+    const url = SB_URL + "/rest/v1/prenotazioni?evento_id=eq." + eventoId + 
+                "&select=created_at,include_pasto&order=created_at.asc";
     const res = UrlFetchApp.fetch(url, { 
       headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
     });
     const prenotazioni = JSON.parse(res.getContentText());
 
-    const stats = {};
+    const statsParty = {};
+    const statsPasto = {};
+    const statsTotale = {};
+    
     prenotazioni.forEach(p => {
-      // Usiamo ISO date per l'ordinamento delle chiavi dell'oggetto
       const data = new Date(p.created_at).toLocaleDateString('it-IT');
-      stats[data] = (stats[data] || 0) + 1;
+      statsTotale[data] = (statsTotale[data] || 0) + 1;
+      
+      if (p.include_pasto === true) {
+        statsPasto[data] = (statsPasto[data] || 0) + 1;
+      } else {
+        statsParty[data] = (statsParty[data] || 0) + 1;
+      }
     });
 
+    // Tutte le date presenti (per allineare le serie)
+    const labels = Object.keys(statsTotale);
+
     return {
-      labels: Object.keys(stats),
-      values: Object.values(stats)
+      labels: labels,
+      party: labels.map(d => statsParty[d] || 0),
+      pasto: labels.map(d => statsPasto[d] || 0),
+      totale: labels.map(d => statsTotale[d] || 0)
     };
   } catch (e) {
     console.error("Errore grafico: " + e.message);
-    return { labels: [], values: [] };
+    return { labels: [], party: [], pasto: [], totale: [] };
   }
 }
 

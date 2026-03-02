@@ -8,7 +8,7 @@
   <?!= include('css_comune'); ?>
   
   <style>
-    /* STILI SPECIFICI SCANNER */
+    /* *** OLD: invariato *** */
     #lock-screen {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -46,7 +46,9 @@
       border: 1px solid #333;
     }
     
-    /* ✅ AGGIUNTO: Badge pasto */
+    /* ═══════════════════════════════════════════════════════════════ */
+    /* NUOVO: Badge pasto (dalla NEW v10) */
+    /* ═══════════════════════════════════════════════════════════════ */
     .badge-pasto {
       display: inline-block;
       background: rgba(255, 193, 7, 0.2);
@@ -59,10 +61,34 @@
       color: #FFC107;
       letter-spacing: 1px;
     }
+    
+    /* ═══════════════════════════════════════════════════════════════ */
+    /* NUOVO: Indicatore modalità nell'header */
+    /* ═══════════════════════════════════════════════════════════════ */
+    .modalita-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+      margin-top: 10px;
+    }
+    .modalita-pasto {
+      background: rgba(255, 193, 7, 0.2);
+      color: #FFC107;
+      border: 1px solid #FFC107;
+    }
+    .modalita-dance {
+      background: rgba(29, 185, 84, 0.2);
+      color: #1db954;
+      border: 1px solid #1db954;
+    }
   </style>
 </head>
 <body id="main-body">
 
+  <!-- *** OLD: invariato *** -->
   <div id="lock-screen">
     <div id="lock-content" class="w-100">
       <div class="spinner-border text-light mb-3" role="status"></div>
@@ -73,13 +99,21 @@
   <div class="container py-3 text-center">
     
     <div id="header-ui" class="mb-3 shadow-lg">
+      <!-- *** OLD: invariato *** -->
       <img src="https://dzqhjifxtgeynsqlxahw.supabase.co/storage/v1/object/public/LOGO/Logo.png" class="logo-img" alt="Logo">
       <div class="titolo-evento fw-bold mt-3" id="display-evento" style="font-size: 1.6rem;">---</div>
       <div class="sottotitolo-staff opacity-75 mt-1" id="display-staff" style="font-size: 1rem;">---</div>
+      
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <!-- NUOVO: Indicatore modalità — nascosto di default,              -->
+      <!-- mostrato solo per eventi con pasto quando scanner è attivo     -->
+      <!-- ═══════════════════════════════════════════════════════════════ -->
+      <div id="display-modalita" class="d-none"></div>
     </div>
     
     <div id="main-content-area">
       
+      <!-- *** OLD: invariato *** -->
       <div id="reader-container" class="d-none">
         <div id="reader"></div>
       </div>
@@ -88,13 +122,14 @@
         <h1 id="res-title" class="display-4 fw-bold mb-2"></h1>
         <p id="res-name" class="display-6 mb-1"></p>
         <p id="res-info" class="fs-5 opacity-75 mb-2"></p>
-        <!-- ✅ AGGIUNTO: Badge pasto -->
+        <!-- NUOVO: Badge pasto (dalla NEW v10) -->
         <div id="res-pasto-badge" class="d-none">
           <span class="badge-pasto">🍽️ CON PASTO</span>
         </div>
         <button class="btn-registrazione mt-4" onclick="resetScanner()">PROSSIMO CLIENTE</button>
       </div>
 
+      <!-- *** OLD: invariato *** -->
       <div id="loading-scanner" class="d-none my-4">
         <div class="spinner-border text-success" role="status"></div>
         <p class="mt-2 fw-bold" style="color: #1db954; letter-spacing: 2px;">ELABORAZIONE...</p>
@@ -102,18 +137,20 @@
 
     </div>
 
+    <!-- *** OLD: invariato *** -->
     <div class="mt-4" id="footer-ui">
        <button class="btn btn-outline-light btn-sm opacity-25 border-0" onclick="ricaricaPagina()">Reset Camera</button>
     </div>
   </div>
 
   <script>
+    // *** OLD: invariato ***
     const CONFIG = {
       evento: "<?= eventoCodice ?>",
       staff: "<?= nicknameStaff ?>"
     };
 
-    // Funzione "corazzata" per ricaricare la pagina su Google Script
+    // *** OLD: invariato ***
     function ricaricaPagina() {
       const url = "https://script.google.com/macros/s/AKfycbxG97wZekEQjU1UYXmIOrlLknbGMJwGr1ogPXlwrvE/dev?page=scanner&evento=" + CONFIG.evento + "&staff=" + CONFIG.staff;
       window.top.location.href = url;
@@ -122,27 +159,52 @@
     window.onload = function() {
       google.script.run
         .withSuccessHandler(function(res) {
+          // *** OLD: invariato ***
           document.getElementById('display-evento').innerText = res.nomeEvento || CONFIG.evento;
           document.getElementById('display-staff').innerText = "STAFF: " + (res.nomeStaff || CONFIG.staff);
 
           if (res.authorized) {
             if (res.troppoPresto) {
-              renderStatusMessage("🕒 ACCESSO ANTICIPATO", `Il check-in apre alle ore <b>${res.oraApertura}</b>`, "#1db954");
+              // ═══════════════════════════════════════════════════════════
+              // MODIFICATO: usa msgAttesa se presente (eventi con pasto)
+              // altrimenti cade sul messaggio OLD per retrocompatibilità
+              // ═══════════════════════════════════════════════════════════
+              const msgTesto = res.msgAttesa || 
+                `Il check-in apre alle ore <b>${res.oraApertura}</b>`;
+              renderStatusMessage("🕒 ACCESSO ANTICIPATO", msgTesto, "#1db954");
             } else {
               document.getElementById('lock-screen').classList.add('d-none');
               document.getElementById('reader-container').classList.remove('d-none');
+              
+              // ═══════════════════════════════════════════════════════════
+              // NUOVO: Mostra indicatore modalità nell'header
+              // Solo per eventi con pasto — SOLO_DANZA non mostra nulla
+              // ═══════════════════════════════════════════════════════════
+              if (res.modalita && res.tipo_evento !== 'SOLO_DANZA') {
+                const divModalita = document.getElementById('display-modalita');
+                if (res.modalita === 'PASTO') {
+                  divModalita.innerHTML = '<span class="modalita-badge modalita-pasto">🍽️ CHECK-IN PASTO</span>';
+                } else {
+                  divModalita.innerHTML = '<span class="modalita-badge modalita-dance">💃 CHECK-IN DANCE</span>';
+                }
+                divModalita.classList.remove('d-none');
+              }
+              
               if (typeof initScanner === "function") initScanner();
             }
           } else {
+            // *** OLD: invariato ***
             renderStatusMessage("⚠️ ATTENZIONE", res.msg, "#ff4444");
           }
         })
         .withFailureHandler(function(err) {
+          // *** OLD: invariato ***
           renderStatusMessage("❌ ERRORE", "Errore di connessione al database", "#ff4444");
         })
         .verificaAccessoScanner(CONFIG.evento, CONFIG.staff);
     };
 
+    // *** OLD: invariato ***
     function renderStatusMessage(titolo, messaggio, colore) {
       document.getElementById('lock-screen').classList.add('d-none');
       document.getElementById('main-content-area').innerHTML = `

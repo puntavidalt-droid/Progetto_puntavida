@@ -78,6 +78,9 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- MODALE EVENTO — LAYOUT RIORGANIZZATO                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="modalEvento" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content shadow-lg border-secondary">
@@ -89,7 +92,9 @@
         <form id="formEvento">
           <input type="hidden" id="id" name="id">
           
-          <!-- SEZIONE BASE -->
+          <!-- ═══════════════════════════════════════════════════════ -->
+          <!-- SEZIONE BASE — Tipo Evento spostato qui in testata    -->
+          <!-- ═══════════════════════════════════════════════════════ -->
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label label-box">Codice Evento (URL)</label>
@@ -109,9 +114,14 @@
               <label class="form-label label-box">Data Evento</label>
               <input type="date" class="form-control" id="data_evento" onchange="suggerisciOrari(this.value)" required>
             </div>
+            <!-- NUOVO: Tipo Evento spostato in testata -->
             <div class="col-md-4 mb-3">
-              <label class="form-label label-box">Capienza Max</label>
-              <input type="number" class="form-control" id="max_partecipanti">
+              <label class="form-label label-box">Tipo Evento</label>
+              <select class="form-select" id="tipo_evento" onchange="toggleCampiPasto()">
+                <option value="SOLO_DANZA">Solo Party</option>
+                <option value="CON_PRANZO">Con Pranzo</option>
+                <option value="CON_CENA">Con Cena</option>
+              </select>
             </div>
             <div class="col-md-4 mb-3">
               <label class="form-label label-box">Stato Visibilità</label>
@@ -122,57 +132,47 @@
             </div>
           </div>
           
+          <div class="row">
+            <div class="col-12 mb-3">
+              <label class="form-label label-box">Descrizione breve</label>
+              <textarea class="form-control" id="descrizione" rows="2"></textarea>
+            </div>
+          </div>
+
           <hr class="my-4 opacity-25">
           
-          <!-- SEZIONE ORARI PRENOTAZIONE E CHECK-IN GENERALE -->
-          <h6 class="text-success text-uppercase fw-bold mb-3">Orari Evento</h6>
+          <!-- ═══════════════════════════════════════════════════════ -->
+          <!-- GESTIONE PARTY (verde) — Sempre visibile              -->
+          <!-- ═══════════════════════════════════════════════════════ -->
+          <h6 class="text-success text-uppercase fw-bold mb-3"><i class="bi bi-music-note-beamed me-2"></i>Gestione Party</h6>
+          
           <div class="row">
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-success text-uppercase fw-bold">Capienza Max Party</label>
+              <input type="number" class="form-control" id="max_partecipanti" min="0">
+            </div>
             <div class="col-md-4 mb-3">
               <label class="form-label small text-success text-uppercase fw-bold">Fine Prenotazioni</label>
               <input type="datetime-local" class="form-control" id="fine_prenotazione">
             </div>
             <div class="col-md-4 mb-3">
-              <label class="form-label small text-success text-uppercase fw-bold">Inizio Check-in</label>
+              <label class="form-label small text-success text-uppercase fw-bold" id="label-inizio-checkin">Inizio Check-in Party</label>
               <input type="datetime-local" class="form-control" id="inizio_checkin">
-            </div>
-            <div class="col-md-4 mb-3">
-              <label class="form-label small text-success text-uppercase fw-bold">Fine Check-in</label>
-              <input type="datetime-local" class="form-control" id="fine_checkin">
-            </div>
-          </div>
-          
-          <hr class="my-4 opacity-25">
-          
-          <!-- SEZIONE PRANZO/CENA -->
-          <h6 class="text-warning text-uppercase fw-bold mb-3">Gestione Pranzo/Cena</h6>
-          
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label label-box">Tipo Evento</label>
-              <select class="form-select" id="tipo_evento" onchange="toggleCampiPasto()">
-                <option value="SOLO_DANZA">Solo Serata Danzante</option>
-                <option value="CON_PRANZO">Con Pranzo</option>
-                <option value="CON_CENA">Con Cena</option>
-              </select>
-            </div>
-            <div class="col-md-6 mb-3" id="campo-pasto-obbligatorio" style="display:none;">
-              <label class="form-label label-box">Modalità Pasto</label>
-              <select class="form-select" id="pasto_obbligatorio">
-                <option value="false">Facoltativo (cliente sceglie)</option>
-                <option value="true">Obbligatorio (tutti devono averlo)</option>
-              </select>
             </div>
           </div>
 
-          <!-- CAMPI DANCE - SEMPRE VISIBILI -->
           <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label small text-success">Prezzo Solo Dance (€)</label>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-success text-uppercase fw-bold">Fine Check-in Party</label>
+              <input type="datetime-local" class="form-control" id="fine_checkin">
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-success">Prezzo Party (€)</label>
               <input type="number" class="form-control" id="prezzo_solo_danza" step="0.01" min="0" placeholder="20.00">
               <div class="small text-muted mt-1">Lascia vuoto se gratis ragazze</div>
             </div>
-            <div class="col-md-6 mb-3">
-              <label class="form-label small text-warning">Messaggio Prezzo Dance</label>
+            <div class="col-md-4 mb-3">
+              <label class="form-label small text-success">Messaggio Prezzo Party</label>
               <textarea class="form-control" id="messaggio_prezzo_danza" rows="2" placeholder="Es: Ingresso gratuito per ragazze fino alle 23:00"></textarea>
             </div>
           </div>
@@ -181,40 +181,51 @@
             <div class="form-check">
               <input class="form-check-input" type="checkbox" id="visualizza_prezzo_danza">
               <label class="form-check-label small" for="visualizza_prezzo_danza">
-                Mostra sempre il prezzo dance (anche quando gratis)
+                Mostra sempre il prezzo party (anche quando gratis)
               </label>
             </div>
           </div>
 
-          <!-- CAMPI PASTO - NASCOSTI SE SOLO_DANZA -->
-          <div id="sezione-campi-pasto" style="display:none;">
+          <hr class="my-4 opacity-25">
+          
+          <!-- ═══════════════════════════════════════════════════════ -->
+          <!-- GESTIONE PRANZO/CENA (giallo) — Condizionale           -->
+          <!-- ═══════════════════════════════════════════════════════ -->
+          <div id="sezione-pranzo-cena">
+            <h6 class="text-warning text-uppercase fw-bold mb-3"><i class="bi bi-cup-hot me-2"></i>Gestione Pranzo/Cena</h6>
             
             <div class="row">
-              <div class="col-md-12 mb-3">
-                <label class="form-label small text-success">Prezzo Con Pasto (€)</label>
-                <input type="number" class="form-control" id="prezzo_con_pasto" step="0.01" min="0" placeholder="50.00">
+              <div class="col-md-6 mb-3" id="campo-pasto-obbligatorio">
+                <label class="form-label label-box">Modalità Pasto</label>
+                <select class="form-select" id="pasto_obbligatorio">
+                  <option value="false">Facoltativo (cliente sceglie)</option>
+                  <option value="true">Obbligatorio (tutti devono averlo)</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label small text-warning text-uppercase fw-bold">Capienza Max Pasto</label>
+                <input type="number" class="form-control" id="max_partecipanti_pasto" min="0" placeholder="30">
               </div>
             </div>
 
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label small text-warning">Max Partecipanti Pasto</label>
-                <input type="number" class="form-control" id="max_partecipanti_pasto" min="0" placeholder="200">
-                <div class="small text-muted mt-1">Deve essere ≤ capienza max totale</div>
+                <label class="form-label small text-warning">Prezzo Con Pasto (€)</label>
+                <input type="number" class="form-control" id="prezzo_con_pasto" step="0.01" min="0" placeholder="50.00">
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label small text-warning">Fine Prenotazioni Pasto</label>
+                <label class="form-label small text-warning">Fine Prenotazione Pasto</label>
                 <input type="datetime-local" class="form-control" id="fine_prenotazione_pasto">
               </div>
             </div>
 
             <div class="row">
               <div class="col-md-6 mb-3">
-                <label class="form-label small text-info">Inizio Check-in Pasto</label>
+                <label class="form-label small text-warning">Inizio Check-in Pasto</label>
                 <input type="datetime-local" class="form-control" id="inizio_checkin_pasto">
               </div>
               <div class="col-md-6 mb-3">
-                <label class="form-label small text-info">Fine Check-in Pasto</label>
+                <label class="form-label small text-warning">Fine Check-in Pasto</label>
                 <input type="datetime-local" class="form-control" id="fine_checkin_pasto">
               </div>
             </div>
@@ -224,15 +235,8 @@
               <textarea class="form-control" id="messaggio_post_registrazione" rows="2" placeholder="Es: Porta documento valido. Dresscode elegante."></textarea>
               <div class="small text-muted mt-1">Mostrato nella mail di conferma</div>
             </div>
-
           </div>
           
-          <hr class="my-4 opacity-25">
-          
-          <div class="mb-3">
-            <label class="form-label label-box">Descrizione breve</label>
-            <textarea class="form-control" id="descrizione" rows="2"></textarea>
-          </div>
         </form>
       </div>
       <div class="modal-footer d-flex justify-content-between">
@@ -252,23 +256,21 @@
   var listaEventiLocali = [];
 
   // ═══════════════════════════════════════════════════════════════
-  // GESTIONE CAMPI PASTO
+  // GESTIONE CAMPI PASTO — MODIFICATO: toggle sezione intera
   // ═══════════════════════════════════════════════════════════════
 
   function toggleCampiPasto() {
     const tipoEvento = document.getElementById('tipo_evento').value;
-    const sezioneCampi = document.getElementById('sezione-campi-pasto');
-    const campoObbligatorio = document.getElementById('campo-pasto-obbligatorio');
+    const sezionePranzoCena = document.getElementById('sezione-pranzo-cena');
     
     if (tipoEvento === 'SOLO_DANZA') {
-      sezioneCampi.style.display = 'none';
-      campoObbligatorio.style.display = 'none';
+      sezionePranzoCena.style.display = 'none';
     } else {
-      sezioneCampi.style.display = 'block';
-      campoObbligatorio.style.display = 'block';
+      sezionePranzoCena.style.display = 'block';
     }
   }
 
+  // *** OLD: invariato ***
   function caricaEventi() {
     console.log("Modulo Eventi: Caricamento dati...");
     google.script.run
@@ -278,6 +280,7 @@
       .getListaEventi();
   }
 
+  // *** OLD: invariato ***
   function suggerisciOrari(dataValue) {
     if(!dataValue || document.getElementById('id').value !== "") return;
     document.getElementById('fine_prenotazione').value = dataValue + "T22:00";
@@ -287,6 +290,10 @@
     let domaniStr = domani.toISOString().split('T')[0];
     document.getElementById('fine_checkin').value = domaniStr + "T04:00";
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RENDER CARD EVENTI — MODIFICATO: 2 contatori party/pasto
+  // ═══════════════════════════════════════════════════════════════
 
   function renderEventi(eventi) {
     listaEventiLocali = eventi || [];
@@ -307,9 +314,16 @@
         const isPassato = dataEvt < oggi;
         if (isPassato && !mostraPassati) return;
 
-        const prenotati = evt.conteggio || 0;
+        // ═══════════════════════════════════════════════════════════
+        // NUOVO: conteggi separati
+        // ═══════════════════════════════════════════════════════════
+        const haPasto = evt.tipo_evento && evt.tipo_evento !== 'SOLO_DANZA';
+        const capienzaParty = evt.max_partecipanti || 0;
+        const capienzaPasto = evt.max_partecipanti_pasto || 0;
+        const prenotatiParty = evt.conteggio_party || 0;
+        const prenotatiPasto = evt.conteggio_pasto || 0;
         const checkin = evt.checkin_effettuati || 0;
-        const capienza = evt.max_partecipanti || 0;
+
         const finePre = evt.fine_prenotazione ? new Date(evt.fine_prenotazione) : null;
         const inizoCk = evt.inizio_checkin ? new Date(evt.inizio_checkin) : null;
         const fineCk = evt.fine_checkin ? new Date(evt.fine_checkin) : null;
@@ -318,9 +332,9 @@
         let badgeTempo = '';
         let badgePasto = '';
         
-        // ═══════════════════════════════════════════════════════════════
-        // BADGE TIPO PASTO
-        // ═══════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════
+        // BADGE TIPO PASTO — *** OLD: invariato ***
+        // ═══════════════════════════════════════════════════════════
         if (evt.tipo_evento === 'CON_CENA') {
           badgePasto = '<span class="badge bg-warning text-dark">🍽️ CENA</span>';
         } else if (evt.tipo_evento === 'CON_PRANZO') {
@@ -331,26 +345,30 @@
             badgePrenotazioni = '<span class="badge bg-dark border border-secondary text-muted">CHIUSO</span>';
             badgeTempo = '<span class="badge bg-dark border border-secondary text-muted text-uppercase">Archiviato</span>';
         } else {
-            // Badge prenotazioni GENERALI
+            // ═══════════════════════════════════════════════════════
+            // NUOVO: Sold out basato su party (non più totale)
+            // ═══════════════════════════════════════════════════════
             badgePrenotazioni = '<span class="badge bg-success">PRENOTAZIONI APERTE</span>';
-            if (capienza > 0 && prenotati >= capienza) {
-                badgePrenotazioni = '<span class="badge bg-danger">SOLD OUT</span>';
+            if (capienzaParty > 0 && prenotatiParty >= capienzaParty) {
+                badgePrenotazioni = '<span class="badge bg-danger">SOLD OUT PARTY</span>';
             } else if (finePre && oraAttuale > finePre) {
                 badgePrenotazioni = '<span class="badge bg-warning text-dark">PRENOTAZIONI CHIUSE</span>';
             } else if (!evt.attivo) {
                 badgePrenotazioni = '<span class="badge bg-secondary">OFFLINE</span>';
             }
             
-            // Badge prenotazioni PASTO (se evento ha pasto)
-            if (evt.tipo_evento !== 'SOLO_DANZA' && badgePasto) {
+            // Badge sold out PASTO separato
+            if (haPasto && capienzaPasto > 0 && prenotatiPasto >= capienzaPasto) {
+              badgePasto += '<br><small class="badge bg-danger mt-1" style="font-size:9px;">PASTO SOLD OUT</small>';
+            } else if (haPasto) {
+              // Badge prenotazioni pasto chiuse per deadline
               const finePastoPre = evt.fine_prenotazione_pasto ? new Date(evt.fine_prenotazione_pasto) : null;
-              
               if (finePastoPre && oraAttuale > finePastoPre) {
                 badgePasto += '<br><small class="badge bg-secondary mt-1" style="font-size:9px;">Pasto Chiuso</small>';
               }
             }
             
-            // Badge check-in DANCE
+            // Badge check-in DANCE — *** OLD: invariato ***
             badgeTempo = '<span class="badge border border-secondary text-muted">IN ATTESA</span>';
             if (inizoCk && fineCk && oraAttuale >= inizoCk && oraAttuale <= fineCk) {
                 badgeTempo = '<span class="badge bg-primary animate-pulse">CHECK-IN LIVE</span>';
@@ -358,17 +376,63 @@
                 badgeTempo = '<span class="badge bg-dark border border-secondary">TERMINATO</span>';
             }
             
-            // Badge check-in PASTO
-            if (evt.tipo_evento !== 'SOLO_DANZA' && evt.inizio_checkin_pasto && evt.fine_checkin_pasto) {
+            // Badge check-in PASTO — *** OLD: invariato ***
+            if (haPasto && evt.inizio_checkin_pasto && evt.fine_checkin_pasto) {
               const inizioPasto = new Date(evt.inizio_checkin_pasto);
               const finePasto = new Date(evt.fine_checkin_pasto);
               
               if (oraAttuale >= inizioPasto && oraAttuale <= finePasto) {
                 badgeTempo += '<br><span class="badge bg-warning text-dark mt-1 animate-pulse" style="font-size:10px;">🍽️ CHECK-IN PASTO LIVE</span>';
-              } else if (oraAttuale > finePasto && oraAttuale < fineCk) {
+              } else if (oraAttuale > finePasto && fineCk && oraAttuale < fineCk) {
                 badgeTempo += '<br><small class="badge bg-dark border border-secondary mt-1" style="font-size:9px;">Pasto Terminato</small>';
               }
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // CARD — MODIFICATO: footer con 2 o 3 colonne
+        // SOLO_DANZA: 2 colonne (Party / Check-in)
+        // CON_PASTO:  3 colonne (Party / Pasto / Check-in)
+        // ═══════════════════════════════════════════════════════════
+        
+        let footerHtml = '';
+        
+        if (haPasto) {
+          // 3 colonne: Party | Pasto | Check-in
+          footerHtml = `
+            <div class="row g-0 mt-auto pt-3 border-top border-secondary text-center">
+               <div class="col-4 border-end border-secondary">
+                  <div class="label-box">🎉 Party</div>
+                  <div class="fw-bold fs-5 ${!isPassato && capienzaParty > 0 && prenotatiParty >= capienzaParty ? 'text-danger' : 'text-success'}">
+                    ${prenotatiParty} <span class="text-white opacity-50 fs-6" style="font-weight:normal">/ ${capienzaParty || '∞'}</span>
+                  </div>
+               </div>
+               <div class="col-4 border-end border-secondary">
+                  <div class="label-box">🍽️ Pasto</div>
+                  <div class="fw-bold fs-5 ${!isPassato && capienzaPasto > 0 && prenotatiPasto >= capienzaPasto ? 'text-danger' : 'text-warning'}">
+                    ${prenotatiPasto} <span class="text-white opacity-50 fs-6" style="font-weight:normal">/ ${capienzaPasto || '∞'}</span>
+                  </div>
+               </div>
+               <div class="col-4">
+                  <div class="label-box">Check-in</div>
+                  <div class="fw-bold fs-5 text-info">${checkin}</div>
+               </div>
+            </div>`;
+        } else {
+          // 2 colonne: Party | Check-in (layout OLD)
+          footerHtml = `
+            <div class="row g-0 mt-auto pt-3 border-top border-secondary text-center">
+               <div class="col-6 border-end border-secondary">
+                  <div class="label-box">🎉 Party</div>
+                  <div class="fw-bold fs-5 ${!isPassato && capienzaParty > 0 && prenotatiParty >= capienzaParty ? 'text-danger' : 'text-success'}">
+                    ${prenotatiParty} <span class="text-white opacity-50 fs-6" style="font-weight:normal">/ ${capienzaParty || '∞'}</span>
+                  </div>
+               </div>
+               <div class="col-6">
+                  <div class="label-box">Check-in</div>
+                  <div class="fw-bold fs-5 text-info">${checkin}</div>
+               </div>
+            </div>`;
         }
 
         container.innerHTML += `
@@ -387,30 +451,19 @@
             <div class="small text-white opacity-50 mb-3">
               <i class="bi bi-calendar3 me-1 text-success"></i> ${new Date(evt.data_evento).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' })}
             </div>
-            <div class="row g-0 mt-auto pt-3 border-top border-secondary text-center">
-               <div class="col-6 border-end border-secondary">
-                  <div class="label-box">Prenotati</div>
-                  <div class="fw-bold fs-5 ${!isPassato && capienza > 0 && prenotati >= capienza ? 'text-danger' : 'text-success'}">
-                    ${prenotati} <span class="text-white opacity-50 fs-6" style="font-weight:normal">/ ${capienza || '∞'}</span>
-                  </div>
-               </div>
-               <div class="col-6">
-                  <div class="label-box">Check-in</div>
-                  <div class="fw-bold fs-5 text-info">${checkin}</div>
-               </div>
-            </div>
+            ${footerHtml}
           </div>
         </div>`;
     });
   }
 
+  // *** OLD: invariato ***
   function apriModaleNuovo() {
     document.getElementById('formEvento').reset();
     document.getElementById('id').value = "";
     document.getElementById('btnElimina').classList.add('d-none');
     document.getElementById('modalTitolo').innerText = "Crea Nuovo Evento";
     
-    // Reset campi pasto
     document.getElementById('tipo_evento').value = 'SOLO_DANZA';
     toggleCampiPasto();
     
@@ -418,10 +471,14 @@
     m.show();
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // MODIFICA — Caricamento campi (tipo_evento ora in testata)
+  // ═══════════════════════════════════════════════════════════════
   function apriModaleModifica(id) {
     const evt = listaEventiLocali.find(e => e.id === id);
     if (!evt) return;
     
+    // Campi base
     document.getElementById('id').value = evt.id;
     document.getElementById('codice_evento').value = evt.codice_evento;
     document.getElementById('nome_evento').value = evt.nome_evento;
@@ -429,23 +486,27 @@
     document.getElementById('attivo').value = evt.attivo.toString();
     document.getElementById('max_partecipanti').value = evt.max_partecipanti;
     document.getElementById('descrizione').value = evt.descrizione || "";
+    
+    // NUOVO: tipo_evento ora è in testata
+    document.getElementById('tipo_evento').value = evt.tipo_evento || 'SOLO_DANZA';
+    toggleCampiPasto();
+    
+    // Campi party
     if(evt.fine_prenotazione) document.getElementById('fine_prenotazione').value = evt.fine_prenotazione.slice(0,16);
     if(evt.inizio_checkin) document.getElementById('inizio_checkin').value = evt.inizio_checkin.slice(0,16);
     if(evt.fine_checkin) document.getElementById('fine_checkin').value = evt.fine_checkin.slice(0,16);
+    document.getElementById('prezzo_solo_danza').value = evt.prezzo_solo_danza || '';
+    document.getElementById('messaggio_prezzo_danza').value = evt.messaggio_prezzo_danza || '';
+    document.getElementById('visualizza_prezzo_danza').checked = evt.visualizza_prezzo_danza || false;
     
     // Campi pasto
-    document.getElementById('tipo_evento').value = evt.tipo_evento || 'SOLO_DANZA';
-    toggleCampiPasto();
     document.getElementById('pasto_obbligatorio').value = (evt.pasto_obbligatorio || false).toString();
-    document.getElementById('prezzo_solo_danza').value = evt.prezzo_solo_danza || '';
     document.getElementById('prezzo_con_pasto').value = evt.prezzo_con_pasto || '';
-    document.getElementById('visualizza_prezzo_danza').checked = evt.visualizza_prezzo_danza || false;
     document.getElementById('max_partecipanti_pasto').value = evt.max_partecipanti_pasto || '';
     if(evt.fine_prenotazione_pasto) document.getElementById('fine_prenotazione_pasto').value = evt.fine_prenotazione_pasto.slice(0,16);
     if(evt.inizio_checkin_pasto) document.getElementById('inizio_checkin_pasto').value = evt.inizio_checkin_pasto.slice(0,16);
     if(evt.fine_checkin_pasto) document.getElementById('fine_checkin_pasto').value = evt.fine_checkin_pasto.slice(0,16);
     document.getElementById('messaggio_post_registrazione').value = evt.messaggio_post_registrazione || '';
-    document.getElementById('messaggio_prezzo_danza').value = evt.messaggio_prezzo_danza || '';
     
     document.getElementById('btnElimina').classList.remove('d-none');
     document.getElementById('modalTitolo').innerText = "Modifica Evento";
@@ -453,6 +514,9 @@
     m.show();
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // SALVATAGGIO — MODIFICATO: rimossa validazione max_pasto <= max
+  // ═══════════════════════════════════════════════════════════════
   function handleSalva() {
     const payload = {
       id: document.getElementById('id').value,
@@ -466,20 +530,24 @@
       fine_checkin: document.getElementById('fine_checkin').value,
       descrizione: document.getElementById('descrizione').value,
       
-      // Campi pasto
+      // Tipo evento (ora in testata)
       tipo_evento: document.getElementById('tipo_evento').value,
-      pasto_obbligatorio: document.getElementById('pasto_obbligatorio').value === 'true',
+      
+      // Campi party
       prezzo_solo_danza: parseFloat(document.getElementById('prezzo_solo_danza').value) || null,
-      prezzo_con_pasto: parseFloat(document.getElementById('prezzo_con_pasto').value) || null,
+      messaggio_prezzo_danza: document.getElementById('messaggio_prezzo_danza').value || null,
       visualizza_prezzo_danza: document.getElementById('visualizza_prezzo_danza').checked,
+      
+      // Campi pasto
+      pasto_obbligatorio: document.getElementById('pasto_obbligatorio').value === 'true',
+      prezzo_con_pasto: parseFloat(document.getElementById('prezzo_con_pasto').value) || null,
       max_partecipanti_pasto: parseInt(document.getElementById('max_partecipanti_pasto').value) || null,
       fine_prenotazione_pasto: document.getElementById('fine_prenotazione_pasto').value || null,
       inizio_checkin_pasto: document.getElementById('inizio_checkin_pasto').value || null,
       fine_checkin_pasto: document.getElementById('fine_checkin_pasto').value || null,
-      messaggio_post_registrazione: document.getElementById('messaggio_post_registrazione').value || null,
-      messaggio_prezzo_danza: document.getElementById('messaggio_prezzo_danza').value || null
+      messaggio_post_registrazione: document.getElementById('messaggio_post_registrazione').value || null
     };
-     // ← AGGIUNGI QUESTA RIGA QUI:
+    
     console.log("PAYLOAD INVIATO:", payload);
     
     if (!payload.codice_evento || !payload.nome_evento || !payload.data_evento) {
@@ -487,20 +555,18 @@
       return;
     }
     
-    // Validazione max pasto
-    if (payload.max_partecipanti_pasto && payload.max_partecipanti_pasto > payload.max_partecipanti) {
-      alert("⚠️ Max partecipanti pasto non può superare la capienza totale!");
-      return;
-    }
+    // RIMOSSA: vecchia validazione max_pasto <= max_partecipanti
+    // (ora sono indipendenti: party e pasto hanno capienze separate)
     
     google.script.run.withSuccessHandler(res => {
       if(res.success) { 
         bootstrap.Modal.getInstance(document.getElementById('modalEvento')).hide();
-        caricaEventi(); // ← Ricarica lista eventi dopo salvataggio
+        caricaEventi();
       } else { alert("Errore: " + res.msg); }
     }).salvaEvento(payload);
   }
 
+  // *** OLD: invariato ***
   function handleElimina() {
     const id = document.getElementById('id').value;
     const codice = document.getElementById('codice_evento').value;
@@ -508,12 +574,12 @@
     google.script.run.withSuccessHandler(res => {
       if(res.success) { 
         bootstrap.Modal.getInstance(document.getElementById('modalEvento')).hide();
-        caricaEventi(); // ← Ricarica lista eventi dopo eliminazione
+        caricaEventi();
       } else { alert(res.msg); }
     }).eliminaEvento(id, codice);
   }
   
-  // Se la pagina è aperta da sola (non nella dashboard), carichiamo i dati all'avvio
+  // *** OLD: invariato ***
   document.addEventListener('DOMContentLoaded', function() {
     if (typeof cambiaVista === 'undefined') { 
       caricaEventi(); 

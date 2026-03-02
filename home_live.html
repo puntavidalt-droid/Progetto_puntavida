@@ -1,6 +1,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="container-fluid py-3">
+  <!-- *** OLD: invariato — Selector evento *** -->
   <div class="d-flex justify-content-between align-items-center mb-4 bg-dark p-2 rounded shadow-sm border border-secondary">
     <div class="flex-grow-1">
       <select id="select-evento-live" class="form-select form-select-lg bg-black text-white border-success" 
@@ -18,33 +19,14 @@
     </div>
   </div>
 
-  <div class="row g-2 mb-4">
-    <div class="col-6 col-md-3">
-      <div class="card bg-dark border-secondary p-3 text-center h-100 shadow-sm">
-        <small class="text-uppercase opacity-50 fw-bold" style="font-size: 0.7rem;">Prenotazioni</small>
-        <h1 id="kpi-prenotati" class="fw-bold mb-0">0</h1>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card bg-dark border-info p-3 text-center h-100 shadow-sm">
-        <small class="text-uppercase text-info fw-bold" style="font-size: 0.7rem;">Check-in</small>
-        <h1 id="kpi-entrati" class="fw-bold mb-0 text-info">0</h1>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card bg-dark border-secondary p-3 text-center h-100 shadow-sm">
-        <small class="text-uppercase opacity-50 fw-bold" style="font-size: 0.7rem;">Posti Liberi</small>
-        <h1 id="kpi-rimanenti" class="fw-bold mb-0 text-warning">0</h1>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card bg-dark border-secondary p-3 text-center h-100 shadow-sm">
-        <small class="text-uppercase opacity-50 fw-bold" style="font-size: 0.7rem;">% Occupazione</small>
-        <h1 id="kpi-perc" class="fw-bold mb-0">0%</h1>
-      </div>
-    </div>
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- KPI BOX — NUOVO: 2 box dinamici party/pasto                   -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <div id="kpi-container" class="row g-2 mb-4">
+    <!-- Popolato dinamicamente da JS -->
   </div>
 
+  <!-- *** OLD: invariato (struttura) — Grafico *** -->
   <div class="row g-3 mb-4">
     <div class="col-12">
       <div class="card bg-dark border-secondary p-3 shadow-sm">
@@ -56,6 +38,7 @@
     </div>
   </div>
 
+  <!-- *** OLD: invariato — PR + Tabella *** -->
   <div class="row g-3">
     <div class="col-lg-5">
       <div class="card bg-dark border-secondary p-3 h-100 shadow-sm">
@@ -78,8 +61,15 @@
            </button>
         </div>
         <div class="table-responsive">
-          <table class="table table-dark table-hover align-middle mb-0">
-            <tbody id="tabella-live-body" class="small"></tbody>
+          <table class="table table-dark table-borderless table-hover table-sm mb-0">
+            <thead><tr>
+              <th class="small text-uppercase opacity-50">Nome</th>
+              <th class="small text-uppercase opacity-50">PR</th>
+              <th class="small text-uppercase opacity-50 text-end">Stato</th>
+            </tr></thead>
+            <tbody id="tabella-live-body">
+              <tr><td colspan="3" class="text-center p-3 opacity-50">Lista vuota</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -91,10 +81,13 @@
   window.timerLiveHome = window.timerLiveHome || null;
   window.eventoSelezionatoManualmente = window.eventoSelezionatoManualmente || null;
   let EVENTO_ID = null;
-  let MAX_POSTI = 0;
+  let MAX_PARTY = 0;
+  let MAX_PASTO = 0;
+  let TIPO_EVENTO = 'SOLO_DANZA';
   let listaEventiLive = [];
   let myChart = null;
 
+  // *** OLD: invariato — caricaHome ***
   function caricaHome() {
     if (window.timerLiveHome) clearInterval(window.timerLiveHome);
 
@@ -122,6 +115,9 @@
       .getTuttiIDati();
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // MODIFICATO: salva tipo_evento + max pasto + genera KPI box
+  // ═══════════════════════════════════════════════════════════════
   function cambiaEventoLive(id, daUtente = true) {
     if (!id) return;
     if (daUtente) window.eventoSelezionatoManualmente = id;
@@ -130,7 +126,12 @@
     if (!evento) return;
 
     EVENTO_ID = evento.id;
-    MAX_POSTI = evento.max_partecipanti || 0;
+    MAX_PARTY = evento.max_partecipanti || 0;
+    MAX_PASTO = evento.max_partecipanti_pasto || 0;
+    TIPO_EVENTO = evento.tipo_evento || 'SOLO_DANZA';
+    
+    // Genera struttura KPI in base al tipo evento
+    generaKpiBox();
     
     document.getElementById('live-indicator').classList.remove('d-none');
     recuperaDatiLive();
@@ -139,6 +140,72 @@
     window.timerLiveHome = setInterval(recuperaDatiLive, 30000);
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // NUOVO: Genera i box KPI in base al tipo evento
+  // ═══════════════════════════════════════════════════════════════
+  function generaKpiBox() {
+    const container = document.getElementById('kpi-container');
+    const haPasto = TIPO_EVENTO !== 'SOLO_DANZA';
+    const labelPasto = TIPO_EVENTO === 'CON_PRANZO' ? 'Pranzo' : 'Cena';
+    
+    if (haPasto) {
+      // 2 box affiancati: Party + Pasto
+      container.innerHTML = `
+        <div class="col-md-6">
+          <div class="card bg-dark border-success p-3 h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-uppercase fw-bold text-success" style="font-size: 0.75rem;">🎉 Party</span>
+              <span class="badge bg-success bg-opacity-25 text-success" id="kpi-party-checkin" style="font-size: 0.7rem;">Check-in: 0</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+              <span id="kpi-party-prenotati" class="fw-bold" style="font-size: 2.2rem; line-height: 1;">0</span>
+              <span class="opacity-50" style="font-size: 1.1rem;">/ ${MAX_PARTY || '∞'}</span>
+              <span id="kpi-party-perc" class="ms-auto fw-bold text-success" style="font-size: 1.1rem;">0%</span>
+            </div>
+            <div class="progress mt-2" style="height: 6px; background: rgba(255,255,255,0.1);">
+              <div id="kpi-party-bar" class="progress-bar bg-success" style="width: 0%; transition: width 0.5s;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card bg-dark border-warning p-3 h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-uppercase fw-bold text-warning" style="font-size: 0.75rem;">🍽️ ${labelPasto}</span>
+              <span class="badge bg-warning bg-opacity-25 text-warning" id="kpi-pasto-checkin" style="font-size: 0.7rem;">Check-in: 0</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+              <span id="kpi-pasto-prenotati" class="fw-bold" style="font-size: 2.2rem; line-height: 1;">0</span>
+              <span class="opacity-50" style="font-size: 1.1rem;">/ ${MAX_PASTO || '∞'}</span>
+              <span id="kpi-pasto-perc" class="ms-auto fw-bold text-warning" style="font-size: 1.1rem;">0%</span>
+            </div>
+            <div class="progress mt-2" style="height: 6px; background: rgba(255,255,255,0.1);">
+              <div id="kpi-pasto-bar" class="progress-bar bg-warning" style="width: 0%; transition: width 0.5s;"></div>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      // 1 box full width: solo Party
+      container.innerHTML = `
+        <div class="col-12">
+          <div class="card bg-dark border-success p-3 h-100 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-uppercase fw-bold text-success" style="font-size: 0.75rem;">🎉 Party</span>
+              <span class="badge bg-success bg-opacity-25 text-success" id="kpi-party-checkin" style="font-size: 0.7rem;">Check-in: 0</span>
+            </div>
+            <div class="d-flex align-items-baseline gap-2">
+              <span id="kpi-party-prenotati" class="fw-bold" style="font-size: 2.2rem; line-height: 1;">0</span>
+              <span class="opacity-50" style="font-size: 1.1rem;">/ ${MAX_PARTY || '∞'}</span>
+              <span id="kpi-party-perc" class="ms-auto fw-bold text-success" style="font-size: 1.1rem;">0%</span>
+            </div>
+            <div class="progress mt-2" style="height: 6px; background: rgba(255,255,255,0.1);">
+              <div id="kpi-party-bar" class="progress-bar bg-success" style="width: 0%; transition: width 0.5s;"></div>
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+
+  // *** OLD: invariato — recuperaDatiLive ***
   function recuperaDatiLive() {
     if (!EVENTO_ID) return;
     document.getElementById('live-indicator').style.opacity = "1";
@@ -152,66 +219,156 @@
 
     google.script.run
       .withSuccessHandler(res => {
-        renderizzaGrafico(res.labels, res.values);
+        renderizzaGrafico(res);
       })
       .homeGetDatiGrafico(EVENTO_ID);
   }
 
-  function renderizzaGrafico(labels, values) {
+  // ═══════════════════════════════════════════════════════════════
+  // MODIFICATO: Grafico con 3 linee (party verde, pasto giallo, totale bianco)
+  // Per SOLO_DANZA: solo linea verde
+  // ═══════════════════════════════════════════════════════════════
+  function renderizzaGrafico(res) {
     const canvas = document.getElementById('bookingChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (myChart) myChart.destroy();
 
+    const haPasto = TIPO_EVENTO !== 'SOLO_DANZA';
+    
+    const datasets = [];
+    
+    // Linea verde: Party (sempre presente)
+    datasets.push({
+      label: '🎉 Party',
+      data: haPasto ? res.party : res.totale,
+      borderColor: '#1db954',
+      backgroundColor: 'rgba(29, 185, 84, 0.08)',
+      borderWidth: 2,
+      fill: !haPasto,
+      tension: 0.4,
+      pointRadius: 3
+    });
+    
+    if (haPasto) {
+      // Linea gialla: Pasto
+      datasets.push({
+        label: '🍽️ ' + (TIPO_EVENTO === 'CON_PRANZO' ? 'Pranzo' : 'Cena'),
+        data: res.pasto,
+        borderColor: '#FFC107',
+        backgroundColor: 'rgba(255, 193, 7, 0.08)',
+        borderWidth: 2,
+        fill: false,
+        tension: 0.4,
+        pointRadius: 3
+      });
+      
+      // Linea bianca: Totale
+      datasets.push({
+        label: 'Totale',
+        data: res.totale,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+        borderDash: [5, 5],
+        borderWidth: 1.5,
+        fill: false,
+        tension: 0.4,
+        pointRadius: 2
+      });
+    }
+
     myChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: labels,
-        datasets: [{
-          label: 'Prenotazioni',
-          data: values,
-          borderColor: '#198754',
-          backgroundColor: 'rgba(25, 135, 84, 0.1)',
-          borderWidth: 2,
-          fill: true,
-          tension: 0.4
-        }]
+        labels: res.labels,
+        datasets: datasets
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: { 
+          legend: { 
+            display: haPasto,
+            labels: { color: 'rgba(255,255,255,0.7)', font: { size: 11 } }
+          } 
+        },
         scales: {
-          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          x: { grid: { display: false } }
+          y: { beginAtZero: true, ticks: { stepSize: 1, color: 'rgba(255,255,255,0.5)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.5)' } }
         }
       }
     });
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // MODIFICATO: aggiornaInterfaccia con split party/pasto
+  // ═══════════════════════════════════════════════════════════════
   function aggiornaInterfaccia(dati) {
     if (!dati) return;
-    const numPrenotati = dati.length;
-    const numEntrati = dati.filter(p => p.entrato === true || String(p.entrato) === "true").length;
+    const haPasto = TIPO_EVENTO !== 'SOLO_DANZA';
     
-    document.getElementById('kpi-prenotati').innerText = numPrenotati;
-    document.getElementById('kpi-entrati').innerText = numEntrati;
+    // Split conteggi
+    const partyPrenotati = dati.filter(p => !p.include_pasto).length;
+    const pastoPrenotati = dati.filter(p => p.include_pasto === true).length;
+    const partyEntrati = dati.filter(p => !p.include_pasto && p.entrato).length;
+    const pastoEntrati = dati.filter(p => p.include_pasto === true && p.entrato).length;
     
-    const rimanenti = MAX_POSTI - numPrenotati;
-    const kpiRimanenti = document.getElementById('kpi-rimanenti');
-    kpiRimanenti.innerText = rimanenti > 0 ? rimanenti : "SOLD OUT";
-    kpiRimanenti.className = rimanenti <= 5 ? "fw-bold mb-0 text-danger" : "fw-bold mb-0 text-warning";
+    // ═══════════════════════════════════════════════════
+    // BOX PARTY (sempre presente)
+    // ═══════════════════════════════════════════════════
+    const percParty = MAX_PARTY > 0 ? Math.round((partyPrenotati / MAX_PARTY) * 100) : 0;
     
-    const perc = MAX_POSTI > 0 ? Math.round((numPrenotati / MAX_POSTI) * 100) : 0;
-    document.getElementById('kpi-perc').innerText = perc + "%";
+    document.getElementById('kpi-party-prenotati').innerText = partyPrenotati;
+    document.getElementById('kpi-party-checkin').innerText = 'Check-in: ' + partyEntrati;
+    document.getElementById('kpi-party-perc').innerText = percParty + '%';
+    
+    const barParty = document.getElementById('kpi-party-bar');
+    barParty.style.width = Math.min(percParty, 100) + '%';
+    // Colore progress bar: verde → giallo → rosso
+    if (percParty >= 95) {
+      barParty.className = 'progress-bar bg-danger';
+    } else if (percParty >= 80) {
+      barParty.className = 'progress-bar bg-warning';
+    } else {
+      barParty.className = 'progress-bar bg-success';
+    }
+    
+    // Numero grande: rosso se sold out
+    const numParty = document.getElementById('kpi-party-prenotati');
+    numParty.style.color = (MAX_PARTY > 0 && partyPrenotati >= MAX_PARTY) ? '#dc3545' : '#fff';
+    
+    // ═══════════════════════════════════════════════════
+    // BOX PASTO (solo se haPasto)
+    // ═══════════════════════════════════════════════════
+    if (haPasto) {
+      const percPasto = MAX_PASTO > 0 ? Math.round((pastoPrenotati / MAX_PASTO) * 100) : 0;
+      
+      document.getElementById('kpi-pasto-prenotati').innerText = pastoPrenotati;
+      document.getElementById('kpi-pasto-checkin').innerText = 'Check-in: ' + pastoEntrati;
+      document.getElementById('kpi-pasto-perc').innerText = percPasto + '%';
+      
+      const barPasto = document.getElementById('kpi-pasto-bar');
+      barPasto.style.width = Math.min(percPasto, 100) + '%';
+      if (percPasto >= 95) {
+        barPasto.className = 'progress-bar bg-danger';
+      } else if (percPasto >= 80) {
+        barPasto.className = 'progress-bar bg-warning';  
+      } else {
+        barPasto.className = 'progress-bar bg-warning';
+      }
+      
+      const numPasto = document.getElementById('kpi-pasto-prenotati');
+      numPasto.style.color = (MAX_PASTO > 0 && pastoPrenotati >= MAX_PASTO) ? '#dc3545' : '#fff';
+    }
 
+    // ═══════════════════════════════════════════════════
+    // CLASSIFICA PR — *** OLD: invariato ***
+    // ═══════════════════════════════════════════════════
     const prStats = {};
     dati.forEach(p => {
       const nick = p.pr_nickname || "Generico";
       prStats[nick] = (prStats[nick] || 0) + 1;
     });
 
-    // Performance PR con Clic per filtro
     const containerPR = document.getElementById('classifica-pr-container');
     containerPR.innerHTML = Object.entries(prStats)
       .sort((a,b) => b[1] - a[1])
@@ -223,7 +380,9 @@
         </div>
       `).join('') || '<div class="text-center p-4 opacity-50 small">Nessuna prenotazione</div>';
 
-    // Tabella Recenti
+    // ═══════════════════════════════════════════════════
+    // TABELLA RECENTI — *** OLD: invariato ***
+    // ═══════════════════════════════════════════════════
     const tabella = document.getElementById('tabella-live-body');
     tabella.innerHTML = dati.slice(-10).reverse().map(p => `
       <tr>
@@ -234,14 +393,12 @@
     `).join('') || '<tr><td colspan="3" class="text-center p-3 opacity-50">Lista vuota</td></tr>';
   }
 
-  // FUNZIONE CHIAVE: Apre la gestione dettagliata
+  // *** OLD: invariato — apriGestione ***
   function apriGestione(filtroPR = null) {
     if (!EVENTO_ID) return;
-    // Salviamo il contesto globalmente per il modulo che sta per caricarsi
     window.filtroGestioneEvento = EVENTO_ID;
     window.filtroGestionePR = filtroPR;
     
-    // Richiama la funzione nel dashboard.html (che gestisce lo switch dei moduli)
     if (typeof caricaModulo === 'function') {
       caricaModulo('gestione_prenotazioni');
     }

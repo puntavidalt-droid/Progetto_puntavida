@@ -9,7 +9,7 @@ function setupConfig() {
   props.setProperties({
     'SUPABASE_URL': 'https://dzqhjifxtgeynsqlxahw.supabase.co',
     'SUPABASE_KEY': 'sb_publishable_m_bsnHy62AaeoYpiD4ycnw_6ED4sgQz',
-    'NETLIFY_URL': 'https://comfy-tartufo-500ca9.netlify.app',
+    'NETLIFY_URL': '//script.google.com/macros/s/AKfycbz5L3NcAJJ7_3wm474L4L008mg3FLDBtzPxwHoNq_zdMao-22fnTE5vC8HB4dgrNjtL/exec',
     'EMAIL_QUEUE_SHEET_ID': ''
   });
   
