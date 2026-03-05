@@ -19,33 +19,7 @@ function homeGetDatiLive(eventoId) {
   }
 }
 
-/**
- * 2. NUOVA: Gestisce l'invio del Report CSV (Completo o per PR)
- * Viene chiamata dal tasto "Invia Report" nella pagina gestione_prenotazioni
- */
-function homeInviaReport(eventoId, nomePR = null) {
-  const mailDestinatario = "puntavida@tuaemail.com"; // <-- Inserisci qui l'indirizzo reale
-  
-  try {
-    const evento = dbGetEventoInfoById(eventoId);
-    let prenotazioni = dbGetPrenotazioniLive(eventoId);
-    
-    // Se è specificato un PR, filtriamo la lista
-    if (nomePR) {
-      prenotazioni = prenotazioni.filter(p => p.pr_nickname === nomePR);
-    }
-    
-    if (prenotazioni.length === 0) return "Nessuna prenotazione da inviare.";
-
-    // Chiama la funzione in UTILITY_MAIL.GS
-    const esito = inviaEmailListaPrenotati(mailDestinatario, evento.nome_evento, prenotazioni, nomePR);
-    
-    return esito ? "Report inviato correttamente a " + mailDestinatario : "Errore nell'invio del report.";
-  } catch (e) {
-    console.error("Errore homeInviaReport: " + e.message);
-    return "Errore server: " + e.message;
-  }
-}
+// homeInviaReport() → unica versione in Logic_Prenotazioni.gs (con CSV + colonna pasto)
 
 /**
  * 3. NUOVA: Ponte per il reinvio del QR Code (richiamato dal client)

@@ -1,0 +1,254 @@
+<div class="container-fluid px-0" id="modulo-estrazione">
+
+  <div class="d-flex align-items-center mb-4">
+    <i class="bi bi-cloud-download-fill text-success me-3" style="font-size:1.8rem;"></i>
+    <div>
+      <h4 class="fw-bold mb-0">Estrazione Dati</h4>
+      <small class="text-muted">Seleziona i parametri ed esporta in Google Sheets</small>
+    </div>
+  </div>
+
+  <!-- PANNELLO PARAMETRI -->
+  <div class="card bg-dark border-secondary shadow-sm mb-4">
+    <div class="card-header border-secondary py-2">
+      <span class="text-success fw-bold text-uppercase small">
+        <i class="bi bi-funnel-fill me-2"></i> Parametri di Selezione
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+
+        <!-- Arco temporale -->
+        <div class="col-md-3">
+          <label class="small text-uppercase fw-bold mb-1 d-block" style="color:#1db954;">
+            <i class="bi bi-calendar-range me-1"></i> Da Data
+          </label>
+          <input type="date" id="estr-data-inizio" class="form-control bg-black text-white border-secondary">
+        </div>
+        <div class="col-md-3">
+          <label class="small text-uppercase fw-bold mb-1 d-block" style="color:#1db954;">
+            <i class="bi bi-calendar-range me-1"></i> A Data
+          </label>
+          <input type="date" id="estr-data-fine" class="form-control bg-black text-white border-secondary">
+        </div>
+
+        <!-- Evento -->
+        <div class="col-md-3">
+          <label class="small text-uppercase fw-bold mb-1 d-block" style="color:#17a2b8;">
+            <i class="bi bi-calendar4-event me-1"></i> Evento
+          </label>
+          <select id="estr-evento" class="form-select bg-black text-white border-secondary">
+            <option value="TUTTI">Tutti gli eventi</option>
+          </select>
+        </div>
+
+        <!-- PR -->
+        <div class="col-md-3">
+          <label class="small text-uppercase fw-bold mb-1 d-block" style="color:#ffc107;">
+            <i class="bi bi-people me-1"></i> PR
+          </label>
+          <select id="estr-pr" class="form-select bg-black text-white border-secondary">
+            <option value="TUTTI">Tutti i PR</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="row g-3 mt-1">
+        <!-- Stato -->
+        <div class="col-md-3">
+          <label class="small text-uppercase fw-bold mb-1 d-block" style="color:#ff6d01;">
+            <i class="bi bi-flag me-1"></i> Stato
+          </label>
+          <select id="estr-stato" class="form-select bg-black text-white border-secondary">
+            <option value="TUTTI">Tutti gli stati</option>
+            <option value="ATTIVE">Solo attive</option>
+            <option value="ENTRATI">Solo entrati</option>
+            <option value="ATTESA">Solo in attesa</option>
+            <option value="ANNULLATE">Solo annullate</option>
+          </select>
+        </div>
+
+        <!-- Bottoni -->
+        <div class="col-md-9 d-flex align-items-end gap-2 justify-content-end">
+          <button class="btn btn-outline-secondary" onclick="resetFiltriEstrazione()" title="Pulisci Filtri">
+            <i class="bi bi-x-circle me-1"></i> RESET
+          </button>
+          <button class="btn btn-success px-4" onclick="avviaEstrazione()" id="btn-estrai">
+            <i class="bi bi-cloud-download me-2"></i> ESTRAI IN GOOGLE SHEETS
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RISULTATO -->
+  <div id="estr-risultato" style="display:none;">
+    <div class="card bg-dark border-success shadow-sm">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-check-circle-fill text-success" style="font-size:2.5rem;"></i>
+        <h5 class="fw-bold mt-3 mb-2" id="estr-msg">Estrazione completata!</h5>
+        <p class="text-muted mb-3" id="estr-dettaglio"></p>
+        <a id="estr-link" href="#" target="_blank" rel="noopener" 
+           class="btn btn-success btn-lg px-5">
+          <i class="bi bi-file-earmark-spreadsheet me-2"></i> APRI GOOGLE SHEET
+        </a>
+        <div class="mt-3">
+          <button class="btn btn-outline-secondary btn-sm" onclick="nascondiRisultato()">
+            <i class="bi bi-arrow-left me-1"></i> Nuova estrazione
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO -->
+  <div class="mt-4 p-3 rounded" style="background: rgba(30,215,96,0.08); border: 1px solid rgba(30,215,96,0.2);">
+    <div class="d-flex align-items-start">
+      <i class="bi bi-lightbulb text-success me-3 mt-1"></i>
+      <div class="small" style="color: #ccc;">
+        <strong class="text-success">Suggerimento:</strong> 
+        Ogni estrazione crea un nuovo Google Sheet nel tuo Drive con nome 
+        <code style="color:#1db954;">PuntaVida_Estrazione_data_ora</code>. 
+        Puoi rinominarlo, creare tabelle pivot, grafici e condividerlo liberamente.
+        Se non selezioni nessun filtro verranno estratte tutte le prenotazioni.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  #modulo-estrazione .form-select,
+  #modulo-estrazione .form-control {
+    background-color: #000 !important;
+    color: #fff !important;
+    border: 1px solid #333 !important;
+  }
+  #modulo-estrazione .form-select:focus,
+  #modulo-estrazione .form-control:focus {
+    border-color: #1db954 !important;
+    box-shadow: none !important;
+  }
+  #modulo-estrazione .btn-success {
+    background-color: #1db954 !important;
+    border-color: #1db954 !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+  }
+  #modulo-estrazione .btn-success:hover {
+    background-color: #1ed760 !important;
+    transform: scale(1.02);
+  }
+  #modulo-estrazione .btn-outline-secondary {
+    border-color: #555 !important;
+    color: #aaa !important;
+    text-transform: uppercase !important;
+    font-weight: 700 !important;
+  }
+  #modulo-estrazione .btn-outline-secondary:hover {
+    background-color: #333 !important;
+    color: #fff !important;
+  }
+</style>
+
+<script>
+  // Caricamento filtri
+  function caricaEstrazione() {
+    google.script.run
+      .withSuccessHandler(function(data) {
+        if (!data) return;
+
+        // Popola eventi
+        const selEvento = document.getElementById('estr-evento');
+        selEvento.innerHTML = '<option value="TUTTI">Tutti gli eventi</option>';
+        (data.eventi || []).forEach(e => {
+          let dataF = '';
+          try {
+            const d = new Date(e.data);
+            dataF = d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' });
+          } catch(ex) { dataF = ''; }
+          selEvento.innerHTML += '<option value="' + e.id + '">' + e.nome + (dataF ? ' (' + dataF + ')' : '') + '</option>';
+        });
+
+        // Popola PR
+        const selPR = document.getElementById('estr-pr');
+        selPR.innerHTML = '<option value="TUTTI">Tutti i PR</option>';
+        (data.pr || []).forEach(p => {
+          selPR.innerHTML += '<option value="' + p.nickname + '">@' + p.nickname + '</option>';
+        });
+
+        console.log('✅ Filtri estrazione caricati');
+      })
+      .getFiltersEstrazione();
+  }
+
+  function resetFiltriEstrazione() {
+    document.getElementById('estr-data-inizio').value = '';
+    document.getElementById('estr-data-fine').value = '';
+    document.getElementById('estr-evento').value = 'TUTTI';
+    document.getElementById('estr-pr').value = 'TUTTI';
+    document.getElementById('estr-stato').value = 'TUTTI';
+    nascondiRisultato();
+  }
+
+  function nascondiRisultato() {
+    document.getElementById('estr-risultato').style.display = 'none';
+  }
+
+  function avviaEstrazione() {
+    const filtri = {
+      dataInizio: document.getElementById('estr-data-inizio').value || null,
+      dataFine: document.getElementById('estr-data-fine').value || null,
+      eventoId: document.getElementById('estr-evento').value,
+      prNickname: document.getElementById('estr-pr').value,
+      stato: document.getElementById('estr-stato').value
+    };
+
+    // Loading
+    const btn = document.getElementById('btn-estrai');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> ESTRAZIONE IN CORSO...';
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+
+        if (result && result.success) {
+          document.getElementById('estr-msg').innerText = 'Estrazione completata!';
+          document.getElementById('estr-dettaglio').innerText = result.righe + ' righe estratte in "' + result.nomeFile + '"';
+          document.getElementById('estr-link').href = result.url;
+          document.getElementById('estr-risultato').style.display = 'block';
+
+          // Apri automaticamente
+          window.open(result.url, '_blank');
+        } else {
+          Swal.fire({
+            title: 'Nessun risultato',
+            text: result ? result.errore : 'Errore sconosciuto',
+            icon: 'warning',
+            background: '#1e1e1e',
+            color: '#fff'
+          });
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        Swal.fire({
+          title: 'Errore',
+          text: err.message || 'Errore durante l\'estrazione',
+          icon: 'error',
+          background: '#1e1e1e',
+          color: '#fff'
+        });
+      })
+      .eseguiEstrazione(filtri);
+  }
+
+  // Avvio
+  caricaEstrazione();
+</script>

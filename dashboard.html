@@ -101,6 +101,12 @@
       <a class="nav-link text-warning" onclick="cambiaVista('links', this)">
         <i class="bi bi-link-45deg"></i> Link Generator
       </a>
+      <a class="nav-link" onclick="cambiaVista('estrazione', this)" style="color:#1db954;">
+        <i class="bi bi-cloud-download"></i> Estrazione Dati
+      </a>
+      <a class="nav-link text-info" onclick="cambiaVista('developer', this)">
+        <i class="bi bi-terminal"></i> Console Developer
+      </a>
     </div>
 
     <div class="mt-auto p-3">
@@ -192,6 +198,16 @@
           alert("Accesso negato: servono privilegi di Amministratore.");
           return;
       }
+      // Protezione Admin per console developer
+      if (modulo === 'developer' && !window.utenteLoggato.is_admin) {
+          alert("Accesso negato: servono privilegi di Amministratore.");
+          return;
+      }
+      // Protezione Admin per estrazione dati
+      if (modulo === 'estrazione' && !window.utenteLoggato.is_admin) {
+          alert("Accesso negato: servono privilegi di Amministratore.");
+          return;
+      }
 
       const container = document.getElementById('modulo-container');
       moduloCorrente = modulo;
@@ -234,7 +250,8 @@
               'pr': 'caricaPR',
               'staff': 'caricaStaff',
               'links': 'caricaGenerator',
-              'gestione_prenotazioni': 'inizializzaGestione'
+              'gestione_prenotazioni': 'inizializzaGestione',
+              'estrazione': 'caricaEstrazione'
             };
             const nomeFunzione = funzioniAvvio[modulo];
             if (window[nomeFunzione]) window[nomeFunzione]();

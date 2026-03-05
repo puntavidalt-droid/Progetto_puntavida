@@ -17,10 +17,7 @@ function renderScanner(e) {
   const template = HtmlService.createTemplateFromFile('scanner');
   template.eventoCodice = e.parameter.evento || "";
   template.nicknameStaff = e.parameter.staff || "";
-
-  return template.evaluate()
-    .setTitle("Scanner Ingressi - Staff")
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0'); 
+  return setupMobileMeta(template, "Staff - Scanner QR");
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -343,20 +340,7 @@ function convalidaIngresso(qrToken, codiceEvento, nicknameStaff) {
 // *** OLD: invariato da qui in poi ***
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Helper timestamp ora locale
- */
-function getTimestampLocale() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
+// getTimestampLocale() → unica versione in Database.gs
 
 /**
  * DEBUG: Verifica orari check-in

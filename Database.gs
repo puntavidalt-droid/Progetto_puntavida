@@ -563,9 +563,9 @@ function dbGetArchivioLinks() {
   }
 }
 
+// MODIFICATO: legge URL da Config_Secure.gs (non più hardcoded)
 function getAppUrl() {
-  const NETLIFY_URL = "https://comfy-tartufo-500ca9.netlify.app/";
-  return NETLIFY_URL;
+  return getConfig().NETLIFY_URL;
 }
 
 function generateAppLink(page, params = {}) {
@@ -632,6 +632,7 @@ function dbGetPrenotazioniLive(eventoId) {
       qr_token: p.qr_token,
       evento_id: p.evento_id,
       pr_nickname: (p.pr && p.pr.nickname) ? p.pr.nickname : "Generico",
+      pr_id: p.pr_id || null,
       entrato: p.entrato === true || String(p.entrato) === "true",
       stato: p.stato || 'ATTIVA',
       ora_ingresso: p.ora_ingresso || null,  // ← AGGIUNGI QUESTA
@@ -838,5 +839,56 @@ function dbAdminModificaPasto(prenotazioneId, includePasto) {
   } catch (e) {
     Logger.log('Errore dbAdminModificaPasto: ' + e.message);
     return false;
+  }
+}
+
+/**
+ * Admin: Cambia il PR associato a una prenotazione
+ * Aggiorna pr_id nella tabella prenotazioni
+ */
+function dbCambiaPR(prenotazioneId, nuovoPrId) {
+  try {
+    const url = SB_URL + '/rest/v1/prenotazioni?id=eq.' + prenotazioneId;
+    
+    const options = {
+      method: 'patch',
+      contentType: 'application/json',
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY
+      },
+      payload: JSON.stringify({
+        pr_id: nuovoPrId
+      })
+    };
+    
+    const res = UrlFetchApp.fetch(url, options);
+    return res.getResponseCode() === 204 || res.getResponseCode() === 200;
+    
+  } catch (e) {
+    Logger.log('Errore dbCambiaPR: ' + e.message);
+    return false;
+  }
+}
+
+// ============================================================
+// NUOVO: Keep Alive Supabase
+// Query leggera per prevenire pausa inattività Supabase free tier
+// Da schedulare con trigger GAS ogni 5 giorni
+// ============================================================
+function keepAliveSupabase() {
+  try {
+    const url = getSupabaseUrl() + '/rest/v1/eventi?select=id&limit=1';
+    const response = UrlFetchApp.fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': getSupabaseKey(),
+        'Authorization': 'Bearer ' + getSupabaseKey()
+      },
+      muteHttpExceptions: true
+    });
+    Logger.log('keepAliveSupabase: HTTP ' + response.getResponseCode());
+  } catch (e) {
+    Logger.log('Errore keepAliveSupabase: ' + e.message);
   }
 }

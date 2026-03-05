@@ -170,6 +170,15 @@
     background: #FFC107 !important; 
     color: #000 !important; 
   }
+  .btn-outline-info { color: #17a2b8 !important; border-color: #17a2b8 !important; }
+  .btn-outline-info:hover { background: #17a2b8 !important; color: #fff !important; }
+
+  /* NUOVO: SweetAlert select in dark mode */
+  .swal-select-dark {
+    background-color: #2a2a2a !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+  }
 </style>
 
 <script>
@@ -184,6 +193,7 @@
   let CHECK_IN_APERTO_SERVER = false;
   let G_EVENTO_INFO = null;  // NUOVO: oggetto evento completo per tipo_evento, fine_prenotazione_pasto
   let G_SCROLL_POS = 0;      // NUOVO: posizione scroll da ripristinare
+  let G_LISTA_PR = [];        // NUOVO: lista PR per cambio PR
 
   // *** OLD: invariato ***
   function inizializzaGestione() {
@@ -207,6 +217,7 @@
         DATI_LOCALI = res.prenotazioni || [];
         CHECK_IN_APERTO_SERVER = res.checkInAperto;
         G_EVENTO_INFO = res.evento || null;  // NUOVO: salvo evento completo
+        G_LISTA_PR = res.listaPR || [];      // NUOVO: salvo lista PR per cambio PR
         
         if (!G_EVENTO_ID) G_EVENTO_ID = res.idSelezionato;
 
@@ -325,6 +336,14 @@
         }
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // NUOVO: Bottone Cambio PR (per prenotazioni non annullate)
+      // ═══════════════════════════════════════════════════════════════
+      let btnCambiaPR = '';
+      if (!annullata) {
+        btnCambiaPR = `<button class="btn btn-sm btn-outline-info ms-1" onclick="cambiaPR('${p.id}', '${nomeCompleto.replace(/'/g, "\\'")}', '${p.pr_nickname}', '${p.pr_id || ''}')" title="Cambia PR"><i class="bi bi-people-fill"></i></button>`;
+      }
+
       return `
         <tr class="${annullata ? 'riga-annullata' : (entrato ? 'riga-entrato' : '')}">
           <td class="${highlightClass}">
@@ -338,6 +357,7 @@
               ${htmlAzioneCheckIn}
               ${btnReinvia}
               ${btnTogglePasto}
+              ${btnCambiaPR}
               ${btnAzione}
             </div>
           </td>
@@ -667,6 +687,101 @@
             });
           }
         }).azioneTogglePasto(id, nuovoValore);
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // NUOVO: Cambio PR singola prenotazione
+  // Dialog con dropdown lista PR
+  // ═══════════════════════════════════════════════════════════════
+  function cambiaPR(id, nomeCliente, prAttuale, prIdAttuale) {
+    // Costruisci opzioni dropdown dalla lista PR globale
+    const opzioni = {};
+    G_LISTA_PR.forEach(pr => {
+      if (pr.id !== prIdAttuale) {
+        opzioni[pr.id] = '@' + pr.nickname;
+      }
+    });
+
+    if (Object.keys(opzioni).length === 0) {
+      Swal.fire({
+        title: 'Nessun PR disponibile',
+        text: 'Non ci sono altri PR nel sistema.',
+        icon: 'info',
+        background: '#1e1e1e',
+        color: '#fff'
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: 'Cambia PR',
+      html: `
+        <div style="text-align: left; padding: 15px; background: rgba(23, 162, 184, 0.1); border-radius: 8px; margin-top: 15px;">
+          <p style="color: #17a2b8; font-weight: bold; margin-bottom: 10px;">
+            <i class="bi bi-people-fill" style="font-size: 1.2em;"></i> Riassegna prenotazione:
+          </p>
+          <p style="font-size: 16px; font-weight: bold; color: #fff; margin: 5px 0;">
+            ${nomeCliente}
+          </p>
+          <p style="font-size: 13px; color: #999; margin: 5px 0;">
+            PR attuale: <span style="color: #1db954; font-weight: bold;">@${prAttuale}</span>
+          </p>
+        </div>
+      `,
+      input: 'select',
+      inputOptions: opzioni,
+      inputPlaceholder: 'Seleziona nuovo PR...',
+      showCancelButton: true,
+      confirmButtonText: 'CAMBIA PR',
+      cancelButtonText: 'ANNULLA',
+      background: '#1e1e1e',
+      color: '#fff',
+      confirmButtonColor: '#17a2b8',
+      cancelButtonColor: '#6c757d',
+      inputValidator: (value) => {
+        if (!value) return 'Seleziona un PR!';
+      },
+      customClass: {
+        input: 'swal-select-dark'
+      }
+    }).then((result) => {
+      if (result.isConfirmed && result.value) {
+        const nuovoPrId = result.value;
+        const nuovoPrNick = opzioni[nuovoPrId] || '';
+
+        Swal.fire({
+          title: 'Aggiornamento...',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          didOpen: () => { Swal.showLoading(); },
+          background: '#1e1e1e',
+          color: '#fff'
+        });
+
+        google.script.run.withSuccessHandler(successo => {
+          if (successo) {
+            Swal.fire({
+              title: 'PR Cambiato!',
+              html: `<b>${nomeCliente}</b><br>@${prAttuale} → <span style="color:#1db954;">${nuovoPrNick}</span>`,
+              icon: 'success',
+              background: '#1e1e1e',
+              color: '#fff',
+              timer: 2500,
+              showConfirmButton: false
+            });
+            setTimeout(() => caricaDatiGestione(), 1500);
+          } else {
+            Swal.fire({
+              title: 'Errore',
+              text: 'Impossibile cambiare il PR. Riprova.',
+              icon: 'error',
+              background: '#1e1e1e',
+              color: '#fff'
+            });
+          }
+        }).azioneCambiaPR(id, nuovoPrId);
       }
     });
   }

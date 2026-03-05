@@ -83,19 +83,8 @@ function createPageOutput(fileName, titolo) {
   return setupMobileMeta(template, titolo);
 }
 
-function renderScanner(e) {
-  const template = HtmlService.createTemplateFromFile('scanner');
-  template.eventoCodice = e.parameter.evento || "";
-  template.nicknameStaff = e.parameter.staff || "";
-  return setupMobileMeta(template, "Staff - Scanner QR");
-}
-
-function renderRegistrazione(e) {
-  const template = HtmlService.createTemplateFromFile('registrazione');
-  template.eventoParam = e.parameter.evento || "";
-  template.prParam = e.parameter.pr || "";
-  return setupMobileMeta(template, "Registrazione Evento - Punta Vida");
-}
+// renderScanner() → in Logic_Scanner.gs (unica versione)
+// renderRegistrazione() → in Logic_Registrazione.gs (unica versione)
 
 function getModuloHTML(modulo) {
   const mapping = {
@@ -104,6 +93,8 @@ function getModuloHTML(modulo) {
     'pr': 'gestione_pr',
     'staff': 'gestione_staff',
     'links': 'link_generator',
+    'developer': 'console_developer',
+    'estrazione': 'estrazione_dati',
     'gestione_prenotazioni': 'gestione_prenotazioni'
   };
   
